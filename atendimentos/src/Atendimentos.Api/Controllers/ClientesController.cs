@@ -4,11 +4,14 @@ using Atendimentos.Api.Helpers;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Atendimentos.Api.Controllers
 {
+    [Authorize]
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/clientes")]
     public class ClientesController : ControllerBase
     {
         private readonly IClienteService _service;
