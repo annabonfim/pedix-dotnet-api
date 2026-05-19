@@ -16,12 +16,21 @@ namespace Atendimentos.Domain.Entities
 
         public DateTime DataNascimento { get; private set; }
 
+        // ✅ NOVO
+        public string? CPF { get; set; }
+
+        // ✅ NOVO
+        public string? Matricula { get; set; }
+
         public string Role { get; private set; }
 
         public bool Ativo { get; private set; }
 
         public DateTime DataCriacao { get; private set; }
 
+        // =====================================================
+        // 🏗️ CONSTRUTOR
+        // =====================================================
         public Usuario(
             string nome,
             string email,
@@ -49,6 +58,9 @@ namespace Atendimentos.Domain.Entities
             DataCriacao = DateTime.UtcNow;
         }
 
+        // =====================================================
+        // 🧱 EF CORE
+        // =====================================================
         protected Usuario()
         {
         }
