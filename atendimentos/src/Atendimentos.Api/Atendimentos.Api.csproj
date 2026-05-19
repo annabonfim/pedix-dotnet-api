@@ -2,22 +2,46 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
+
     <Nullable>enable</Nullable>
+
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Atendimentos.Application\Atendimentos.Application.csproj" />
+
     <ProjectReference Include="..\Atendimentos.Infrastructure\Atendimentos.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.8" />
+
     <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="8.0.8" />
+
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.8">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <IncludeAssets>
+        runtime; build; native; contentfiles; analyzers; buildtransitive
+      </IncludeAssets>
+
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="8.0.10" />
+
+    <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.15.3" />
+
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.15.3" />
+
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.2" />
+
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.15.1" />
+
+    <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
+
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+
   </ItemGroup>
 
 </Project>
