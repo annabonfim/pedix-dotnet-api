@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+
 using Atendimentos.Domain.Entities;
 
 namespace Atendimentos.Infrastructure.Context
@@ -12,9 +13,8 @@ namespace Atendimentos.Infrastructure.Context
         }
 
         // =====================================================
-        // 📦 DBSETS
+        // 📦 DBSets
         // =====================================================
-
         public DbSet<Mesa> Mesas { get; set; }
 
         public DbSet<Garcom> Garcons { get; set; }
@@ -26,18 +26,16 @@ namespace Atendimentos.Infrastructure.Context
         public DbSet<Usuario> Usuarios { get; set; }
 
         // =====================================================
-        // 🧩 MODEL CREATING
+        // 🏗️ MODEL CREATING
         // =====================================================
-
         protected override void OnModelCreating(
             ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // =====================================================
+            // =================================================
             // 🪑 TABELA MESAS
-            // =====================================================
-
+            // =================================================
             modelBuilder.Entity<Mesa>(entity =>
             {
                 entity.ToTable("MESAS");
@@ -45,38 +43,37 @@ namespace Atendimentos.Infrastructure.Context
                 entity.HasKey(m => m.Id);
 
                 entity.HasIndex(m => m.Numero)
-                    .IsUnique();
+                      .IsUnique();
 
                 entity.Property(m => m.Numero)
-                    .IsRequired();
+                      .IsRequired();
 
                 entity.Property(m => m.Status)
-                    .IsRequired();
+                      .IsRequired();
 
                 entity.Property(m => m.Capacidade);
 
                 entity.Property(m => m.Localizacao)
-                    .HasMaxLength(80);
+                      .HasMaxLength(80);
 
                 entity.Property(m => m.QrCode)
-                    .HasMaxLength(256);
+                      .HasMaxLength(256);
 
                 entity.Property(m => m.CreatedAt)
-                    .IsRequired();
+                      .IsRequired();
 
                 entity.Property(m => m.UpdatedAt)
-                    .IsRequired();
+                      .IsRequired();
 
                 entity.Property(m => m.RowVersion)
-                    .IsRowVersion()
-                    .IsConcurrencyToken()
-                    .IsRequired();
+                      .IsRowVersion()
+                      .IsConcurrencyToken()
+                      .IsRequired();
             });
 
-            // =====================================================
+            // =================================================
             // 🧑‍🍳 TABELA GARCONS
-            // =====================================================
-
+            // =================================================
             modelBuilder.Entity<Garcom>(entity =>
             {
                 entity.ToTable("GARCONS");
@@ -84,28 +81,27 @@ namespace Atendimentos.Infrastructure.Context
                 entity.HasKey(g => g.Id);
 
                 entity.Property(g => g.Nome)
-                    .IsRequired()
-                    .HasMaxLength(100);
+                      .IsRequired()
+                      .HasMaxLength(100);
 
                 entity.Property(g => g.Matricula)
-                    .IsRequired()
-                    .HasMaxLength(20);
+                      .IsRequired()
+                      .HasMaxLength(20);
 
                 entity.Property(g => g.Telefone)
-                    .IsRequired()
-                    .HasMaxLength(20);
+                      .IsRequired()
+                      .HasMaxLength(20);
 
                 entity.Property(g => g.DataContratacao)
-                    .IsRequired();
+                      .IsRequired();
 
                 entity.Property(g => g.Ativo)
-                    .IsRequired();
+                      .IsRequired();
             });
 
-            // =====================================================
+            // =================================================
             // 🧾 TABELA COMANDAS
-            // =====================================================
-
+            // =================================================
             modelBuilder.Entity<Comanda>(entity =>
             {
                 entity.ToTable("COMANDAS");
@@ -113,34 +109,33 @@ namespace Atendimentos.Infrastructure.Context
                 entity.HasKey(c => c.Id);
 
                 entity.Property(c => c.Status)
-                    .IsRequired();
+                      .IsRequired();
 
                 entity.Property(c => c.DataHoraAbertura)
-                    .IsRequired();
+                      .IsRequired();
 
                 entity.Property(c => c.ValorTotal)
-                    .HasColumnType("DECIMAL(10,2)");
+                      .HasColumnType("DECIMAL(10,2)");
 
                 entity.HasOne<Mesa>()
-                    .WithMany()
-                    .HasForeignKey(c => c.MesaId)
-                    .OnDelete(DeleteBehavior.Restrict);
+                      .WithMany()
+                      .HasForeignKey(c => c.MesaId)
+                      .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne<Garcom>()
-                    .WithMany()
-                    .HasForeignKey(c => c.GarcomId)
-                    .OnDelete(DeleteBehavior.Restrict);
+                      .WithMany()
+                      .HasForeignKey(c => c.GarcomId)
+                      .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne<Cliente>()
-                    .WithMany()
-                    .HasForeignKey(c => c.ClienteId)
-                    .OnDelete(DeleteBehavior.SetNull);
+                      .WithMany()
+                      .HasForeignKey(c => c.ClienteId)
+                      .OnDelete(DeleteBehavior.SetNull);
             });
 
-            // =====================================================
+            // =================================================
             // 👤 TABELA CLIENTES
-            // =====================================================
-
+            // =================================================
             modelBuilder.Entity<Cliente>(entity =>
             {
                 entity.ToTable("CLIENTES");
@@ -148,20 +143,19 @@ namespace Atendimentos.Infrastructure.Context
                 entity.HasKey(c => c.Id);
 
                 entity.Property(c => c.Nome)
-                    .IsRequired()
-                    .HasMaxLength(120);
+                      .IsRequired()
+                      .HasMaxLength(120);
 
                 entity.Property(c => c.Telefone)
-                    .HasMaxLength(20);
+                      .HasMaxLength(20);
 
                 entity.Property(c => c.DataCadastro)
-                    .IsRequired();
+                      .IsRequired();
             });
 
-            // =====================================================
+            // =================================================
             // 🔐 TABELA USUARIOS
-            // =====================================================
-
+            // =================================================
             modelBuilder.Entity<Usuario>(entity =>
             {
                 entity.ToTable("USUARIOS");
@@ -169,46 +163,54 @@ namespace Atendimentos.Infrastructure.Context
                 entity.HasKey(u => u.Id);
 
                 entity.Property(u => u.Id)
-                    .HasColumnName("ID");
+                      .HasColumnName("ID");
 
                 entity.Property(u => u.Nome)
-                    .HasColumnName("NOME")
-                    .IsRequired()
-                    .HasMaxLength(100);
+                      .HasColumnName("NOME")
+                      .IsRequired()
+                      .HasMaxLength(100);
 
                 entity.Property(u => u.Email)
-                    .HasColumnName("EMAIL")
-                    .IsRequired()
-                    .HasMaxLength(150);
-
-                entity.HasIndex(u => u.Email)
-                    .IsUnique();
-
-                entity.Property(u => u.Telefone)
-                    .HasColumnName("TELEFONE")
-                    .HasMaxLength(20);
+                      .HasColumnName("EMAIL")
+                      .IsRequired()
+                      .HasMaxLength(100);
 
                 entity.Property(u => u.SenhaHash)
-                    .HasColumnName("SENHA_HASH")
-                    .IsRequired()
-                    .HasMaxLength(255);
+                      .HasColumnName("SENHA_HASH")
+                      .IsRequired()
+                      .HasMaxLength(256);
+
+                entity.Property(u => u.Telefone)
+                      .HasColumnName("TELEFONE")
+                      .IsRequired()
+                      .HasMaxLength(20);
 
                 entity.Property(u => u.DataNascimento)
-                    .HasColumnName("DATA_NASCIMENTO")
-                    .IsRequired();
-
-                entity.Property(u => u.DataCriacao)
-                    .HasColumnName("DATA_CRIACAO")
-                    .IsRequired();
-
-                entity.Property(u => u.Ativo)
-                    .HasColumnName("ATIVO")
-                    .IsRequired();
+                      .HasColumnName("DATA_NASCIMENTO")
+                      .IsRequired();
 
                 entity.Property(u => u.Role)
-                    .HasColumnName("ROLE")
-                    .IsRequired()
-                    .HasMaxLength(30);
+                      .HasColumnName("ROLE")
+                      .IsRequired()
+                      .HasMaxLength(50);
+
+                entity.Property(u => u.Ativo)
+                      .HasColumnName("ATIVO")
+                      .IsRequired();
+
+                entity.Property(u => u.DataCriacao)
+                      .HasColumnName("DATA_CRIACAO")
+                      .IsRequired();
+
+                // ✅ CPF
+                entity.Property(u => u.CPF)
+                      .HasColumnName("CPF")
+                      .HasMaxLength(14);
+
+                // ✅ MATRÍCULA
+                entity.Property(u => u.Matricula)
+                      .HasColumnName("MATRICULA")
+                      .HasMaxLength(30);
             });
         }
     }
