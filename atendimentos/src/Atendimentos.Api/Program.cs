@@ -1,13 +1,21 @@
 using Atendimentos.Infrastructure.Context;
 using Microsoft.EntityFrameworkCore;
+
 using Atendimentos.Domain.Repositories;
+
 using Atendimentos.Infrastructure.Repositories;
+
 using Atendimentos.Application.Services;
+using Atendimentos.Application.Services.Auth;
+
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+
 using System.Text.Json;
 using System.Linq;
+
 using Serilog;
+
 using OpenTelemetry.Trace;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -20,7 +28,9 @@ var builder = WebApplication.CreateBuilder(args);
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .WriteTo.Console()
-    .WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day)
+    .WriteTo.File(
+        "logs/log-.txt",
+        rollingInterval: RollingInterval.Day)
     .CreateLogger();
 
 builder.Host.UseSerilog();
@@ -29,19 +39,25 @@ builder.Host.UseSerilog();
 // 🔌 BANCO DE DADOS (ORACLE)
 // ==========================
 builder.Services.AddDbContext<AtendimentosDbContext>(options =>
-    options.UseOracle(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseOracle(
+        builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // ==========================
 // 📊 HEALTH CHECKS
 // ==========================
-builder.Services.AddHealthChecks()
+builder.Services
+    .AddHealthChecks()
     .AddDbContextCheck<AtendimentosDbContext>("Database");
 
 // ==========================
-// 🔍 OPENTELEMETRY (TRACING + MÉTRICAS)
+// 🔍 OPENTELEMETRY
 // ==========================
-builder.Services.AddOpenTelemetry()
-    .ConfigureResource(resource => resource.AddService("Atendimentos.Api"))
+builder.Services
+    .AddOpenTelemetry()
+    .ConfigureResource(resource =>
+        resource.AddService("Atendimentos.Api"))
+
+    // 🔎 TRACING
     .WithTracing(tracing =>
     {
         tracing
@@ -49,6 +65,8 @@ builder.Services.AddOpenTelemetry()
             .AddHttpClientInstrumentation()
             .AddConsoleExporter();
     })
+
+    // 📈 MÉTRICAS
     .WithMetrics(metrics =>
     {
         metrics
@@ -61,29 +79,39 @@ builder.Services.AddOpenTelemetry()
 // 📦 INJEÇÃO DE DEPENDÊNCIA
 // ==========================
 
-// MESA
+// 🪑 MESA
 builder.Services.AddScoped<IMesaRepository, MesaRepository>();
 builder.Services.AddScoped<IMesaService, MesaService>();
 
-// GARÇOM
+// 🧑‍🍳 GARÇOM
 builder.Services.AddScoped<IGarcomRepository, GarcomRepository>();
 builder.Services.AddScoped<IGarcomService, GarcomService>();
 
-// COMANDA
+// 🧾 COMANDA
 builder.Services.AddScoped<IComandaRepository, ComandaRepository>();
 builder.Services.AddScoped<IComandaService, ComandaService>();
 
-// CLIENTE 
+// 👤 CLIENTE
 builder.Services.AddScoped<IClienteRepository, ClienteRepository>();
 builder.Services.AddScoped<IClienteService, ClienteService>();
+
+// 🔐 USUÁRIO / AUTH
+builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
+
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 // ==========================
 // ⚙️ CONFIGURAÇÕES GERAIS
 // ==========================
 builder.Services.AddControllers();
+
 builder.Services.AddEndpointsApiExplorer();
+
 builder.Services.AddSwaggerGen();
 
+// ==========================
+// 🚀 BUILD APP
+// ==========================
 var app = builder.Build();
 
 // ==========================
@@ -92,6 +120,7 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
+
     app.UseSwaggerUI();
 }
 
@@ -104,10 +133,11 @@ app.UseSerilogRequestLogging();
 // 🔐 MIDDLEWARES
 // ==========================
 app.UseHttpsRedirection();
+
 app.UseAuthorization();
 
 // ==========================
-// 📍 ENDPOINTS
+// 📍 CONTROLLERS
 // ==========================
 app.MapControllers();
 
@@ -123,23 +153,37 @@ app.MapHealthChecks("/health", new HealthCheckOptions
         var response = new
         {
             status = report.Status.ToString(),
+
             totalDuration = report.TotalDuration,
+
             checks = report.Entries.Select(entry => new
             {
                 name = entry.Key,
+
                 status = entry.Value.Status.ToString(),
+
                 duration = entry.Value.Duration
             })
         };
 
-        await context.Response.WriteAsync(JsonSerializer.Serialize(response, new JsonSerializerOptions
-        {
-            WriteIndented = true
-        }));
+        await context.Response.WriteAsync(
+            JsonSerializer.Serialize(
+                response,
+                new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                }));
     }
 });
 
+// ==========================
+// ▶️ START APP
+// ==========================
 app.Run();
 
-// 🔥 ESSENCIAL PARA TESTES DE INTEGRAÇÃO
-public partial class Program { }
+// ==========================
+// 🧪 TESTES DE INTEGRAÇÃO
+// ==========================
+public partial class Program
+{
+}
