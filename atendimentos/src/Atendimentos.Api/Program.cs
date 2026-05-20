@@ -10,82 +10,68 @@ using Atendimentos.Application.Services;
 using Atendimentos.Application.Services.Auth;
 
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using System.Text.Json;
 
-using Microsoft.IdentityModel.Tokens;
+using Serilog;
 
 using OpenTelemetry.Trace;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 
-using Serilog;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+
+using Microsoft.IdentityModel.Tokens;
 
 using System.Text;
-using System.Text.Json;
-using System.Linq;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // =====================================================
-// 🧾 CONFIGURAÇÃO DO SERILOG
+// 🧾 CONFIGURAÇÃO SERILOG
 // =====================================================
-
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
-
     .WriteTo.Console()
-
     .WriteTo.File(
         "logs/log-.txt",
         rollingInterval: RollingInterval.Day)
-
     .CreateLogger();
 
 builder.Host.UseSerilog();
 
 // =====================================================
-// 🔌 BANCO DE DADOS ORACLE
+// 🔌 BANCO ORACLE
 // =====================================================
-
 builder.Services.AddDbContext<AtendimentosDbContext>(options =>
-{
     options.UseOracle(
         builder.Configuration.GetConnectionString(
-            "DefaultConnection"));
-});
+            "DefaultConnection")));
 
 // =====================================================
 // 📊 HEALTH CHECKS
 // =====================================================
-
 builder.Services
     .AddHealthChecks()
-
     .AddDbContextCheck<AtendimentosDbContext>(
         "Database");
 
 // =====================================================
 // 🔍 OPENTELEMETRY
 // =====================================================
-
 builder.Services
     .AddOpenTelemetry()
-
     .ConfigureResource(resource =>
-    {
-        resource.AddService("Atendimentos.Api");
-    })
+        resource.AddService("Atendimentos.Api"))
 
     // 🔎 TRACING
     .WithTracing(tracing =>
     {
         tracing
             .AddAspNetCoreInstrumentation()
-
             .AddHttpClientInstrumentation()
-
             .AddConsoleExporter();
     })
 
@@ -94,28 +80,21 @@ builder.Services
     {
         metrics
             .AddAspNetCoreInstrumentation()
-
             .AddHttpClientInstrumentation()
-
             .AddConsoleExporter();
     });
 
 // =====================================================
 // 🔐 JWT AUTHENTICATION
 // =====================================================
-
 var jwtKey =
-    builder.Configuration["Jwt:Key"];
+    builder.Configuration["Jwt:Key"]
+    ?? throw new Exception(
+        "JWT Key não configurada.");
 
 builder.Services
-    .AddAuthentication(options =>
-    {
-        options.DefaultAuthenticateScheme =
-            JwtBearerDefaults.AuthenticationScheme;
-
-        options.DefaultChallengeScheme =
-            JwtBearerDefaults.AuthenticationScheme;
-    })
+    .AddAuthentication(
+        JwtBearerDefaults.AuthenticationScheme)
 
     .AddJwtBearer(options =>
     {
@@ -182,7 +161,7 @@ builder.Services.AddScoped<
     IClienteService,
     ClienteService>();
 
-// 🔐 AUTH / USUÁRIOS
+// 🔐 AUTH
 builder.Services.AddScoped<
     IUsuarioRepository,
     UsuarioRepository>();
@@ -194,7 +173,6 @@ builder.Services.AddScoped<
 // =====================================================
 // ⚙️ CONFIGURAÇÕES GERAIS
 // =====================================================
-
 builder.Services.AddControllers();
 
 builder.Services.AddEndpointsApiExplorer();
@@ -204,13 +182,11 @@ builder.Services.AddSwaggerGen();
 // =====================================================
 // 🚀 BUILD APP
 // =====================================================
-
 var app = builder.Build();
 
 // =====================================================
 // 📘 SWAGGER
 // =====================================================
-
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -219,18 +195,16 @@ if (app.Environment.IsDevelopment())
 }
 
 // =====================================================
-// 🧾 LOGS DE REQUISIÇÃO
+// 🧾 LOG REQUESTS
 // =====================================================
-
 app.UseSerilogRequestLogging();
 
 // =====================================================
 // 🔐 MIDDLEWARES
 // =====================================================
-
 app.UseHttpsRedirection();
 
-// 🔐 JWT
+// ✅ JWT
 app.UseAuthentication();
 
 app.UseAuthorization();
@@ -238,61 +212,58 @@ app.UseAuthorization();
 // =====================================================
 // 📍 CONTROLLERS
 // =====================================================
-
 app.MapControllers();
 
 // =====================================================
 // ❤️ HEALTH CHECK CUSTOMIZADO
 // =====================================================
-
-app.MapHealthChecks("/health", new HealthCheckOptions
-{
-    ResponseWriter = async (context, report) =>
+app.MapHealthChecks("/health",
+    new HealthCheckOptions
     {
-        context.Response.ContentType =
-            "application/json";
-
-        var response = new
+        ResponseWriter = async (context, report) =>
         {
-            status =
-                report.Status.ToString(),
+            context.Response.ContentType =
+                "application/json";
 
-            totalDuration =
-                report.TotalDuration,
+            var response = new
+            {
+                status =
+                    report.Status.ToString(),
 
-            checks =
-                report.Entries.Select(entry => new
-                {
-                    name = entry.Key,
+                totalDuration =
+                    report.TotalDuration,
 
-                    status =
-                        entry.Value.Status.ToString(),
+                checks =
+                    report.Entries.Select(entry => new
+                    {
+                        name = entry.Key,
 
-                    duration =
-                        entry.Value.Duration
-                })
-        };
+                        status =
+                            entry.Value.Status.ToString(),
 
-        await context.Response.WriteAsync(
-            JsonSerializer.Serialize(
-                response,
-                new JsonSerializerOptions
-                {
-                    WriteIndented = true
-                }));
-    }
-});
+                        duration =
+                            entry.Value.Duration
+                    })
+            };
+
+            await context.Response.WriteAsync(
+                JsonSerializer.Serialize(
+                    response,
+                    new JsonSerializerOptions
+                    {
+                        WriteIndented = true
+                    }));
+        }
+    });
 
 // =====================================================
 // ▶️ START APP
 // =====================================================
-
 app.Run();
 
 // =====================================================
 // 🧪 TESTES DE INTEGRAÇÃO
 // =====================================================
-
 public partial class Program
 {
 }
