@@ -216,6 +216,17 @@ builder.Services.AddScoped<
     PedidoService>();
 
 // =====================================================
+// 📦 PEDIDO ITENS
+// =====================================================
+builder.Services.AddScoped<
+    IPedidoItemRepository,
+    PedidoItemRepository>();
+
+builder.Services.AddScoped<
+    IPedidoItemService,
+    PedidoItemService>();
+
+// =====================================================
 // ⚙️ CONTROLLERS
 // =====================================================
 builder.Services.AddControllers();
