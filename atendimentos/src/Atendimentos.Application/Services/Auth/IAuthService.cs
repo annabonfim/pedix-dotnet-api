@@ -13,7 +13,7 @@ namespace Atendimentos.Application.Services.Auth
             RegisterClienteDto dto);
 
         // =====================================================
-        // 🧑‍🍳 REGISTRO GARÇOM
+        // 👨‍🍳 REGISTRO GARÇOM
         // =====================================================
         Task<Usuario> RegistrarGarcomAsync(
             RegisterGarcomDto dto);
