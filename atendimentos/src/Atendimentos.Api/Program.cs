@@ -7,6 +7,7 @@ using Atendimentos.Domain.Repositories;
 using Atendimentos.Infrastructure.Repositories;
 
 using Atendimentos.Application.Services;
+
 using Atendimentos.Application.Services.Auth;
 
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -15,10 +16,14 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 using System.Text.Json;
 
+using System.Linq;
+
 using Serilog;
 
 using OpenTelemetry.Trace;
+
 using OpenTelemetry.Metrics;
+
 using OpenTelemetry.Resources;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -30,57 +35,73 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 // =====================================================
-// 🧾 CONFIGURAÇÃO SERILOG
+// 🧾 SERILOG
 // =====================================================
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .WriteTo.Console()
     .WriteTo.File(
         "logs/log-.txt",
-        rollingInterval: RollingInterval.Day)
+        rollingInterval:
+            RollingInterval.Day)
     .CreateLogger();
 
 builder.Host.UseSerilog();
 
 // =====================================================
-// 🔌 BANCO ORACLE
+// 🔌 DATABASE ORACLE
 // =====================================================
-builder.Services.AddDbContext<AtendimentosDbContext>(options =>
+builder.Services.AddDbContext<
+    AtendimentosDbContext>(options =>
+{
     options.UseOracle(
-        builder.Configuration.GetConnectionString(
-            "DefaultConnection")));
+        builder.Configuration
+            .GetConnectionString(
+                "DefaultConnection"));
+});
 
 // =====================================================
-// 📊 HEALTH CHECKS
+// ❤️ HEALTH CHECKS
 // =====================================================
 builder.Services
     .AddHealthChecks()
-    .AddDbContextCheck<AtendimentosDbContext>(
-        "Database");
+    .AddDbContextCheck<
+        AtendimentosDbContext>(
+            "Database");
 
 // =====================================================
 // 🔍 OPENTELEMETRY
 // =====================================================
 builder.Services
     .AddOpenTelemetry()
-    .ConfigureResource(resource =>
-        resource.AddService("Atendimentos.Api"))
 
+    .ConfigureResource(resource =>
+        resource.AddService(
+            "Atendimentos.Api"))
+
+    // =================================================
     // 🔎 TRACING
+    // =================================================
     .WithTracing(tracing =>
     {
         tracing
             .AddAspNetCoreInstrumentation()
+
             .AddHttpClientInstrumentation()
+
             .AddConsoleExporter();
     })
 
-    // 📈 MÉTRICAS
+    // =================================================
+    // 📈 METRICS
+    // =================================================
     .WithMetrics(metrics =>
     {
         metrics
             .AddAspNetCoreInstrumentation()
+
             .AddHttpClientInstrumentation()
+
             .AddConsoleExporter();
     });
 
@@ -89,8 +110,12 @@ builder.Services
 // =====================================================
 var jwtKey =
     builder.Configuration["Jwt:Key"]
+
     ?? throw new Exception(
         "JWT Key não configurada.");
+
+var key =
+    Encoding.UTF8.GetBytes(jwtKey);
 
 builder.Services
     .AddAuthentication(
@@ -116,16 +141,17 @@ builder.Services
                     builder.Configuration["Jwt:Audience"],
 
                 IssuerSigningKey =
-                    new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(jwtKey))
+                    new SymmetricSecurityKey(key)
             };
     });
 
 // =====================================================
-// 📦 INJEÇÃO DE DEPENDÊNCIA
+// 📦 DEPENDENCY INJECTION
 // =====================================================
 
-// 🪑 MESA
+// =====================================================
+// 🍽️ MESA
+// =====================================================
 builder.Services.AddScoped<
     IMesaRepository,
     MesaRepository>();
@@ -134,7 +160,9 @@ builder.Services.AddScoped<
     IMesaService,
     MesaService>();
 
-// 🧑‍🍳 GARÇOM
+// =====================================================
+// 👨‍🍳 GARÇOM
+// =====================================================
 builder.Services.AddScoped<
     IGarcomRepository,
     GarcomRepository>();
@@ -143,7 +171,9 @@ builder.Services.AddScoped<
     IGarcomService,
     GarcomService>();
 
+// =====================================================
 // 🧾 COMANDA
+// =====================================================
 builder.Services.AddScoped<
     IComandaRepository,
     ComandaRepository>();
@@ -152,7 +182,9 @@ builder.Services.AddScoped<
     IComandaService,
     ComandaService>();
 
+// =====================================================
 // 👤 CLIENTE
+// =====================================================
 builder.Services.AddScoped<
     IClienteRepository,
     ClienteRepository>();
@@ -161,7 +193,9 @@ builder.Services.AddScoped<
     IClienteService,
     ClienteService>();
 
-// 🔐 AUTH
+// =====================================================
+// 🔐 USUÁRIO / AUTH
+// =====================================================
 builder.Services.AddScoped<
     IUsuarioRepository,
     UsuarioRepository>();
@@ -171,13 +205,87 @@ builder.Services.AddScoped<
     AuthService>();
 
 // =====================================================
-// ⚙️ CONFIGURAÇÕES GERAIS
+// 🧾 PEDIDOS
+// =====================================================
+builder.Services.AddScoped<
+    IPedidoRepository,
+    PedidoRepository>();
+
+builder.Services.AddScoped<
+    IPedidoService,
+    PedidoService>();
+
+// =====================================================
+// ⚙️ CONTROLLERS
 // =====================================================
 builder.Services.AddControllers();
 
+// =====================================================
+// 📘 SWAGGER
+// =====================================================
 builder.Services.AddEndpointsApiExplorer();
 
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc(
+        "v1",
+        new()
+        {
+            Title = "Atendimentos API",
+
+            Version = "v1"
+        });
+
+    // ================================================
+    // 🔐 JWT SWAGGER
+    // ================================================
+    options.AddSecurityDefinition(
+        "Bearer",
+        new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+        {
+            Name = "Authorization",
+
+            Type =
+                Microsoft.OpenApi.Models
+                    .SecuritySchemeType.Http,
+
+            Scheme = "bearer",
+
+            BearerFormat = "JWT",
+
+            In =
+                Microsoft.OpenApi.Models
+                    .ParameterLocation.Header,
+
+            Description =
+                "Digite o token JWT."
+        });
+
+    options.AddSecurityRequirement(
+        new Microsoft.OpenApi.Models
+            .OpenApiSecurityRequirement
+        {
+            {
+                new Microsoft.OpenApi.Models
+                    .OpenApiSecurityScheme
+                {
+                    Reference =
+                        new Microsoft.OpenApi.Models
+                            .OpenApiReference
+                        {
+                            Type =
+                                Microsoft.OpenApi.Models
+                                    .ReferenceType
+                                        .SecurityScheme,
+
+                            Id = "Bearer"
+                        }
+                },
+
+                Array.Empty<string>()
+            }
+        });
+});
 
 // =====================================================
 // 🚀 BUILD APP
@@ -195,7 +303,7 @@ if (app.Environment.IsDevelopment())
 }
 
 // =====================================================
-// 🧾 LOG REQUESTS
+// 🧾 REQUEST LOGGING
 // =====================================================
 app.UseSerilogRequestLogging();
 
@@ -204,7 +312,6 @@ app.UseSerilogRequestLogging();
 // =====================================================
 app.UseHttpsRedirection();
 
-// ✅ JWT
 app.UseAuthentication();
 
 app.UseAuthorization();
@@ -215,45 +322,50 @@ app.UseAuthorization();
 app.MapControllers();
 
 // =====================================================
-// ❤️ HEALTH CHECK CUSTOMIZADO
+// ❤️ HEALTH CHECK
 // =====================================================
-app.MapHealthChecks("/health",
+app.MapHealthChecks(
+    "/health",
     new HealthCheckOptions
     {
-        ResponseWriter = async (context, report) =>
-        {
-            context.Response.ContentType =
-                "application/json";
-
-            var response = new
+        ResponseWriter =
+            async (context, report) =>
             {
-                status =
-                    report.Status.ToString(),
+                context.Response.ContentType =
+                    "application/json";
 
-                totalDuration =
-                    report.TotalDuration,
+                var response = new
+                {
+                    status =
+                        report.Status.ToString(),
 
-                checks =
-                    report.Entries.Select(entry => new
-                    {
-                        name = entry.Key,
+                    totalDuration =
+                        report.TotalDuration,
 
-                        status =
-                            entry.Value.Status.ToString(),
+                    checks =
+                        report.Entries.Select(
+                            entry => new
+                            {
+                                name = entry.Key,
 
-                        duration =
-                            entry.Value.Duration
-                    })
-            };
+                                status =
+                                    entry.Value.Status
+                                        .ToString(),
 
-            await context.Response.WriteAsync(
-                JsonSerializer.Serialize(
-                    response,
-                    new JsonSerializerOptions
-                    {
-                        WriteIndented = true
-                    }));
-        }
+                                duration =
+                                    entry.Value.Duration
+                            })
+                };
+
+                await context.Response
+                    .WriteAsync(
+                        JsonSerializer.Serialize(
+                            response,
+                            new JsonSerializerOptions
+                            {
+                                WriteIndented = true
+                            }));
+            }
     });
 
 // =====================================================
@@ -262,7 +374,7 @@ app.MapHealthChecks("/health",
 app.Run();
 
 // =====================================================
-// 🧪 TESTES DE INTEGRAÇÃO
+// 🧪 TESTES INTEGRAÇÃO
 // =====================================================
 public partial class Program
 {
