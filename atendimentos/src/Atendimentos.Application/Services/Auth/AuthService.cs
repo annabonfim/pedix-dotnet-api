@@ -1,6 +1,7 @@
 using Atendimentos.Application.DTOs.Auth;
 
 using Atendimentos.Domain.Entities;
+
 using Atendimentos.Domain.Repositories;
 
 using Microsoft.Extensions.Configuration;
@@ -40,7 +41,8 @@ namespace Atendimentos.Application.Services.Auth
             RegisterClienteDto dto)
         {
             var usuarioExistente =
-                await _repository.ObterPorEmailAsync(dto.Email);
+                await _repository
+                    .ObterPorEmailAsync(dto.Email);
 
             if (usuarioExistente != null)
             {
@@ -49,27 +51,31 @@ namespace Atendimentos.Application.Services.Auth
             }
 
             var senhaHash =
-                BCrypt.Net.BCrypt.HashPassword(dto.Senha);
+                BCrypt.Net.BCrypt
+                    .HashPassword(dto.Senha);
 
-            var usuario = new Usuario(
-                dto.Nome,
-                dto.Email,
-                senhaHash,
-                dto.Telefone,
-                dto.DataNascimento,
-                "Cliente");
+            var usuario =
+                new Usuario(
+                    dto.Nome,
+                    dto.Email,
+                    senhaHash,
+                    dto.Telefone,
+                    dto.DataNascimento,
+                    "Cliente");
 
-            return await _repository.CriarAsync(usuario);
+            return await _repository
+                .CriarAsync(usuario);
         }
 
         // =====================================================
-        // 🧑‍🍳 REGISTRO GARÇOM
+        // 👨‍🍳 REGISTRO GARÇOM
         // =====================================================
         public async Task<Usuario> RegistrarGarcomAsync(
             RegisterGarcomDto dto)
         {
             var usuarioExistente =
-                await _repository.ObterPorEmailAsync(dto.Email);
+                await _repository
+                    .ObterPorEmailAsync(dto.Email);
 
             if (usuarioExistente != null)
             {
@@ -78,23 +84,22 @@ namespace Atendimentos.Application.Services.Auth
             }
 
             var senhaHash =
-                BCrypt.Net.BCrypt.HashPassword(dto.Senha);
+                BCrypt.Net.BCrypt
+                    .HashPassword(dto.Senha);
 
-            var usuario = new Usuario(
-                dto.Nome,
-                dto.Email,
-                senhaHash,
-                dto.Telefone,
-                dto.DataNascimento,
-                "Garcom");
+            var usuario =
+                new Usuario(
+                    dto.Nome,
+                    dto.Email,
+                    senhaHash,
+                    dto.Telefone,
+                    dto.DataNascimento,
+                    "Garcom",
+                    dto.CPF,
+                    dto.Matricula);
 
-            // ✅ CPF
-            usuario.CPF = dto.CPF;
-
-            // ✅ MATRÍCULA
-            usuario.Matricula = dto.Matricula;
-
-            return await _repository.CriarAsync(usuario);
+            return await _repository
+                .CriarAsync(usuario);
         }
 
         // =====================================================
@@ -103,23 +108,19 @@ namespace Atendimentos.Application.Services.Auth
         public async Task<Usuario> RegistrarAdminAsync(
             RegisterAdminDto dto)
         {
-            // ==========================================
-            // 🔐 VALIDA ADMIN KEY
-            // ==========================================
-            var adminKeySistema =
-                _configuration["AdminSettings:AdminKey"];
+            var adminKeyConfig =
+                _configuration[
+                    "AdminSettings:AdminKey"];
 
-            if (dto.AdminKey != adminKeySistema)
+            if (dto.AdminKey != adminKeyConfig)
             {
                 throw new Exception(
                     "AdminKey inválida.");
             }
 
-            // ==========================================
-            // 📧 VERIFICA EMAIL
-            // ==========================================
             var usuarioExistente =
-                await _repository.ObterPorEmailAsync(dto.Email);
+                await _repository
+                    .ObterPorEmailAsync(dto.Email);
 
             if (usuarioExistente != null)
             {
@@ -127,24 +128,24 @@ namespace Atendimentos.Application.Services.Auth
                     "Email já cadastrado.");
             }
 
-            // ==========================================
-            // 🔑 HASH SENHA
-            // ==========================================
             var senhaHash =
-                BCrypt.Net.BCrypt.HashPassword(dto.Senha);
+                BCrypt.Net.BCrypt
+                    .HashPassword(dto.Senha);
 
-            // ==========================================
-            // 👑 CRIA ADMIN
-            // ==========================================
-            var usuario = new Usuario(
-                dto.Nome,
-                dto.Email,
-                senhaHash,
-                dto.Telefone,
-                dto.DataNascimento,
-                "Admin");
+            var usuario =
+                new Usuario(
+                    dto.Nome,
+                    dto.Email,
+                    senhaHash,
+                    dto.Telefone,
+                    dto.DataNascimento,
+                    "Admin",
+                    null,
+                    null,
+                    dto.AdminKey);
 
-            return await _repository.CriarAsync(usuario);
+            return await _repository
+                .CriarAsync(usuario);
         }
 
         // =====================================================
@@ -154,7 +155,8 @@ namespace Atendimentos.Application.Services.Auth
             LoginDto dto)
         {
             var usuario =
-                await _repository.ObterPorEmailAsync(dto.Email);
+                await _repository
+                    .ObterPorEmailAsync(dto.Email);
 
             if (usuario == null)
             {
@@ -196,23 +198,20 @@ namespace Atendimentos.Application.Services.Auth
             };
 
             // =================================================
-            // 🔑 CHAVE JWT
+            // 🔑 JWT KEY
             // =================================================
             var key =
                 new SymmetricSecurityKey(
                     Encoding.UTF8.GetBytes(
                         _configuration["Jwt:Key"]!));
 
-            // =================================================
-            // ✍️ CREDENCIAIS TOKEN
-            // =================================================
-            var creds =
+            var credentials =
                 new SigningCredentials(
                     key,
                     SecurityAlgorithms.HmacSha256);
 
             // =================================================
-            // 🎫 TOKEN JWT
+            // 🎫 TOKEN
             // =================================================
             var token =
                 new JwtSecurityToken(
@@ -226,13 +225,13 @@ namespace Atendimentos.Application.Services.Auth
                         claims,
 
                     expires:
-                        DateTime.Now.AddHours(2),
+                        DateTime.UtcNow.AddHours(2),
 
                     signingCredentials:
-                        creds);
+                        credentials);
 
             // =================================================
-            // 🚀 RETORNO TOKEN
+            // 🚀 RETURN TOKEN
             // =================================================
             return new JwtSecurityTokenHandler()
                 .WriteToken(token);
