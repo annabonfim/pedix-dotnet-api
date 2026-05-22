@@ -1,0 +1,54 @@
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  buildConfiguration: 'Release'
+
+steps:
+
+# =====================================================
+# .NET SDK
+# =====================================================
+- task: UseDotNet@2
+  inputs:
+    packageType: 'sdk'
+    version: '8.x'
+
+# =====================================================
+# RESTORE
+# =====================================================
+- script: dotnet restore
+  displayName: 'Restore dependencies'
+
+# =====================================================
+# BUILD
+# =====================================================
+- script: dotnet build --configuration $(buildConfiguration) --no-restore
+  displayName: 'Build solution'
+
+# =====================================================
+# TESTS
+# =====================================================
+- script: dotnet test --no-build --configuration $(buildConfiguration)
+  displayName: 'Run tests'
+
+# =====================================================
+# PUBLISH
+# =====================================================
+- script: |
+    dotnet publish src/Atendimentos.Api/Atendimentos.Api.csproj \
+      --configuration $(buildConfiguration) \
+      --output $(Build.ArtifactStagingDirectory)
+  displayName: 'Publish API'
+
+# =====================================================
+# DEPLOY AZURE APP SERVICE
+# =====================================================
+- task: AzureWebApp@1
+  inputs:
+    azureSubscription: 'AzureServiceConnection'
+    appName: 'pedix-api-dotnet'
+    package: '$(Build.ArtifactStagingDirectory)'
