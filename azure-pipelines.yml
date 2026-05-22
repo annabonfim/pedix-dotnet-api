@@ -20,26 +20,26 @@ steps:
 # =====================================================
 # RESTORE
 # =====================================================
-- script: dotnet restore
+- script: dotnet restore C-/atendimentos/Atendimentos.sln
   displayName: 'Restore dependencies'
 
 # =====================================================
 # BUILD
 # =====================================================
-- script: dotnet build --configuration $(buildConfiguration) --no-restore
+- script: dotnet build C-/atendimentos/Atendimentos.sln --configuration $(buildConfiguration) --no-restore
   displayName: 'Build solution'
 
 # =====================================================
 # TESTS
 # =====================================================
-- script: dotnet test --no-build --configuration $(buildConfiguration)
+- script: dotnet test C-/atendimentos/Atendimentos.sln --no-build --configuration $(buildConfiguration)
   displayName: 'Run tests'
 
 # =====================================================
 # PUBLISH
 # =====================================================
 - script: |
-    dotnet publish src/Atendimentos.Api/Atendimentos.Api.csproj \
+    dotnet publish C-/atendimentos/src/Atendimentos.Api/Atendimentos.Api.csproj \
       --configuration $(buildConfiguration) \
       --output $(Build.ArtifactStagingDirectory)
   displayName: 'Publish API'
