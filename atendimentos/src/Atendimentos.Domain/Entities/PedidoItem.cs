@@ -6,35 +6,47 @@ namespace Atendimentos.Domain.Entities
 
         public Guid PedidoId { get; private set; }
 
-        public string NomeProduto { get; private set; }
+        // =====================================================
+        // 🍔 ITEM CARDÁPIO (API JAVA)
+        // =====================================================
+        public int ItemCardapioId { get; private set; }
 
+        // =====================================================
+        // 🔢 QUANTIDADE
+        // =====================================================
         public int Quantidade { get; private set; }
 
-        public decimal PrecoUnitario { get; private set; }
+        // =====================================================
+        // 💰 PREÇO NO MOMENTO DA COMPRA
+        // =====================================================
+        public decimal PrecoMomento { get; private set; }
 
+        // =====================================================
+        // 💵 SUBTOTAL
+        // =====================================================
         public decimal Subtotal { get; private set; }
 
-        // ==========================================
+        // =====================================================
         // 🏗️ CONSTRUTOR
-        // ==========================================
+        // =====================================================
         public PedidoItem(
             Guid pedidoId,
-            string nomeProduto,
+            int itemCardapioId,
             int quantidade,
-            decimal precoUnitario)
+            decimal precoMomento)
         {
             Id = Guid.NewGuid();
 
             PedidoId = pedidoId;
 
-            NomeProduto = nomeProduto;
+            ItemCardapioId = itemCardapioId;
 
             Quantidade = quantidade;
 
-            PrecoUnitario = precoUnitario;
+            PrecoMomento = precoMomento;
 
             Subtotal =
-                quantidade * precoUnitario;
+                quantidade * precoMomento;
         }
 
         protected PedidoItem()
