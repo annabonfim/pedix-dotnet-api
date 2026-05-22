@@ -16,16 +16,34 @@ namespace Atendimentos.Domain.Entities
 
         public DateTime DataNascimento { get; private set; }
 
-        // ✅ NOVO
-        public string? CPF { get; set; }
+        // =====================================================
+        // 🪪 CPF
+        // =====================================================
+        public string? CPF { get; private set; }
 
-        // ✅ NOVO
-        public string? Matricula { get; set; }
+        // =====================================================
+        // 🆔 MATRÍCULA
+        // =====================================================
+        public string? Matricula { get; private set; }
 
+        // =====================================================
+        // 🔑 ADMIN KEY
+        // =====================================================
+        public string? AdminKey { get; private set; }
+
+        // =====================================================
+        // 🔐 ROLE
+        // =====================================================
         public string Role { get; private set; }
 
+        // =====================================================
+        // ✅ ATIVO
+        // =====================================================
         public bool Ativo { get; private set; }
 
+        // =====================================================
+        // 📅 DATA CRIAÇÃO
+        // =====================================================
         public DateTime DataCriacao { get; private set; }
 
         // =====================================================
@@ -37,7 +55,10 @@ namespace Atendimentos.Domain.Entities
             string senhaHash,
             string telefone,
             DateTime dataNascimento,
-            string role)
+            string role,
+            string? cpf = null,
+            string? matricula = null,
+            string? adminKey = null)
         {
             Id = Guid.NewGuid();
 
@@ -52,6 +73,12 @@ namespace Atendimentos.Domain.Entities
             DataNascimento = dataNascimento;
 
             Role = role;
+
+            CPF = cpf;
+
+            Matricula = matricula;
+
+            AdminKey = adminKey;
 
             Ativo = true;
 
