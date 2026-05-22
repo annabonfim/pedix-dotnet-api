@@ -252,17 +252,28 @@ namespace Atendimentos.Infrastructure.Context
                 entity.Property(pi => pi.PedidoId)
                     .HasColumnName("PEDIDOID");
 
-                entity.Property(pi => pi.NomeProduto)
-                    .HasColumnName("NOMEPRODUTO")
-                    .HasMaxLength(200);
+                // =============================================
+                // 🍔 ITEM CARDÁPIO (API JAVA)
+                // =============================================
+                entity.Property(pi => pi.ItemCardapioId)
+                    .HasColumnName("ITEMCARDAPIOID");
 
+                // =============================================
+                // 🔢 QUANTIDADE
+                // =============================================
                 entity.Property(pi => pi.Quantidade)
                     .HasColumnName("QUANTIDADE");
 
-                entity.Property(pi => pi.PrecoUnitario)
-                    .HasColumnName("PRECOUNITARIO")
+                // =============================================
+                // 💰 PREÇO MOMENTO
+                // =============================================
+                entity.Property(pi => pi.PrecoMomento)
+                    .HasColumnName("PRECOMOMENTO")
                     .HasPrecision(10, 2);
 
+                // =============================================
+                // 💵 SUBTOTAL
+                // =============================================
                 entity.Property(pi => pi.Subtotal)
                     .HasColumnName("SUBTOTAL")
                     .HasPrecision(10, 2);
