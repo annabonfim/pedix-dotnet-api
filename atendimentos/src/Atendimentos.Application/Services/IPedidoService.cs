@@ -28,5 +28,11 @@ namespace Atendimentos.Application.Services
 
         Task<List<Pedido>>
             ObterPorGarcomAsync(Guid garcomId);
+
+        // Libera a mesa SE ela não tem mais nenhum pedido ativo.
+        // Chamada explicitamente pelo PagamentoService após aprovar conta,
+        // pra não fazer parte do fluxo de AtualizarStatus (ENTREGUE não
+        // significa "conta paga", só "comida na mesa").
+        Task LiberarMesaSeOciosaAsync(Guid mesaId);
     }
 }

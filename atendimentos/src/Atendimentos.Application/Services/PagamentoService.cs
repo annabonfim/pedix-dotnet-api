@@ -114,9 +114,13 @@ namespace Atendimentos.Application.Services
         // =====================================================
         // ✅ APROVAR PAGAMENTO
         // =====================================================
-        // Quando o pagamento é aprovado, fecha a conta do cliente naquela mesa:
-        // todos os pedidos ativos do mesmo cliente+mesa viram ENTREGUE. Isso
-        // dispara a liberação da mesa em cascata via PedidoService.
+        // Aprovar pagamento = fechar a conta do cliente na mesa:
+        //   1. Pagamento vira APROVADO
+        //   2. Todos os pedidos ativos do cliente naquela mesa viram ENTREGUE
+        //   3. Mesa volta pra LIVRE (se não tem mais pedido ativo de ninguém)
+        //
+        // ENTREGUE sozinho NÃO libera a mesa — o garçom pode entregar comida
+        // sem a conta estar paga. Só PAGAMENTO APROVADO fecha a mesa.
         public async Task<Pagamento?>
             AprovarAsync(Guid id)
         {
@@ -129,7 +133,16 @@ namespace Atendimentos.Application.Services
 
             await _repository.AtualizarAsync(pagamento);
 
-            await FecharContaAsync(pagamento.PedidoId);
+            var mesaId = await FecharContaAsync(pagamento.PedidoId);
+
+            // Depois de marcar os pedidos como ENTREGUE, tenta liberar a mesa.
+            // Se ainda há outro cliente com pedido ativo na mesma mesa,
+            // o LiberarMesaSeOciosaAsync mantém ela ocupada.
+            if (mesaId.HasValue)
+            {
+                await _pedidoService
+                    .LiberarMesaSeOciosaAsync(mesaId.Value);
+            }
 
             return pagamento;
         }
@@ -137,12 +150,13 @@ namespace Atendimentos.Application.Services
         // =====================================================
         // 🧾 FECHAR CONTA (helper)
         // =====================================================
-        private async Task FecharContaAsync(Guid pedidoIdPago)
+        // Retorna o mesaId pra o caller usar na liberação da mesa.
+        private async Task<Guid?> FecharContaAsync(Guid pedidoIdPago)
         {
             var pedidoBase = await _pedidoRepository
                 .ObterPorIdAsync(pedidoIdPago);
 
-            if (pedidoBase == null) return;
+            if (pedidoBase == null) return null;
 
             var pedidosDoCliente = await _pedidoRepository
                 .ObterPorClienteAsync(pedidoBase.ClienteId);
@@ -156,6 +170,8 @@ namespace Atendimentos.Application.Services
                 await _pedidoService
                     .AtualizarStatusAsync(pedido.Id, "ENTREGUE");
             }
+
+            return pedidoBase.MesaId;
         }
 
         // =====================================================

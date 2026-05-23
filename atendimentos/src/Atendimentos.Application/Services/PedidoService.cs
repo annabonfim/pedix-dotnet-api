@@ -121,13 +121,10 @@ namespace Atendimentos.Application.Services
 
             await _repository.AtualizarAsync(pedido);
 
-            // Mesa só é liberada quando o pedido foi ENTREGUE (conta fechada).
-            // Cancelamento sozinho não libera — o cliente pode estar só
-            // trocando o que pediu.
-            if (_statusLiberaMesa.Contains(statusNovo))
-            {
-                await LiberarMesaSeOciosaAsync(pedido.MesaId);
-            }
+            // ATENÇÃO: NÃO liberar a mesa aqui, mesmo se o status for ENTREGUE.
+            //   ENTREGUE significa apenas "o garçom levou a comida".
+            //   A mesa só libera quando a conta é PAGA (PagamentoService chama
+            //   LiberarMesaSeOciosaAsync explicitamente após aprovar pagamento).
 
             return pedido;
         }
@@ -174,7 +171,10 @@ namespace Atendimentos.Application.Services
             await _mesaRepository.AtualizarAsync(mesa);
         }
 
-        private async Task LiberarMesaSeOciosaAsync(Guid mesaId)
+        // Público (parte da IPedidoService) pra ser chamado pelo PagamentoService
+        // depois de aprovar uma conta. Faz nada se ainda existe pedido ativo
+        // (outro cliente na mesma mesa, por exemplo).
+        public async Task LiberarMesaSeOciosaAsync(Guid mesaId)
         {
             var pedidosDaMesa = await _repository.ObterPorMesaAsync(mesaId);
             // "Ativo" = qualquer pedido que ainda não foi entregue NEM cancelado.
