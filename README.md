@@ -1,539 +1,326 @@
-# 🍽️ Sistema de Atendimentos de Restaurante
+# 🍝 Pedix API — Atendimentos (.NET)
 
-Este projeto é uma **API RESTful desenvolvida em .NET 8** para o gerenciamento completo de atendimentos em um restaurante, incluindo controle de **mesas, garçons, comandas e clientes**.  
-O objetivo é oferecer uma base sólida e escalável para sistemas de gestão de atendimento, integrando **banco de dados Oracle** e aplicando **Clean Architecture** com **boas práticas de desenvolvimento .NET**.
+API REST em **ASP.NET Core 8** que cuida do **atendimento em restaurante**: autenticação por papel (cliente, garçom, gerente), mesas, pedidos, itens-pedido e pagamentos. Persistência em **Oracle**, arquitetura **Clean Architecture** + **DDD**, JWT com BCrypt.
+
+É a API consumida pelo app mobile **Pedix** ([github.com/annabonfim/pedix-app](https://github.com/annabonfim/pedix-app)) — junto com a [API Java](https://github.com/alanerochaa/pedix-api) que serve o cardápio.
+
+> Sprint 4 / Challenge FIAP 2026 — CodeGirls 👩‍💻
 
 ---
 
 ## 🧭 Índice
 
-1. [🎯 Objetivo e Escopo](#-objetivo-e-escopo)  
-2. [🧩 Visão Geral e Arquitetura](#-visão-geral-e-arquitetura)  
-3. [⚙️ Tecnologias Utilizadas](#️-tecnologias-utilizadas)  
-4. [📋 Requisitos do Sistema](#-requisitos-do-sistema)  
-5. [🏗️ Estrutura do Projeto](#️-estrutura-do-projeto)  
-6. [🗃️ Entidades Principais](#️-entidades-principais)  
-7. [🚀 Configuração e Execução](#-configuração-e-execução)  
-8. [🧱 Migrations e Banco de Dados](#-migrations-e-banco-de-dados)  
-9. [🌐 Endpoints Principais (Swagger)](#-endpoints-principais-swagger)  
-10. [💾 Exemplos de Uso (Swagger)](#-exemplos-de-uso-swagger)  
-11. [🔗 Implementações Avançadas (HATEOAS e Search)](#-implementações-avançadas-hateoas-e-search)  
-12. [🧠 Regras de Negócio Implementadas](#-regras-de-negócio-implementadas) 
-
-13. [📈 Observabilidade e Testes Automatizados](#observabilidade-e-testes-automatizados) 
-
-14. [👥 Integrantes do Grupo](#-integrantes-do-grupo)  
+1. [Visão geral](#-visão-geral)
+2. [Arquitetura](#%EF%B8%8F-arquitetura)
+3. [Tecnologias](#%EF%B8%8F-tecnologias)
+4. [Estrutura do projeto](#%EF%B8%8F-estrutura-do-projeto)
+5. [Entidades](#%EF%B8%8F-entidades)
+6. [Como rodar](#-como-rodar)
+7. [Endpoints](#-endpoints)
+8. [Autenticação](#-autenticação)
+9. [Regras de negócio](#-regras-de-negócio)
+10. [Observabilidade](#-observabilidade-health-logs-tracing)
+11. [Testes](#-testes-automatizados)
+12. [Time](#-time)
 
 ---
 
-## 🎯 Objetivo e Escopo
+## 🎯 Visão geral
 
-O **Sistema de Atendimentos de Restaurante** tem como objetivo digitalizar e automatizar o fluxo de atendimento, desde o cadastro de mesas até o fechamento da comanda.
+A API gerencia tudo que acontece **na mesa** do restaurante:
 
-**Escopo do projeto:**
-- Cadastro e gerenciamento de mesas, garçons e clientes.  
-- Abertura e fechamento de comandas.  
-- Registro de pedidos e cálculo automático do valor total.  
-- Persistência em banco de dados Oracle.  
-- Exposição de API RESTful documentada via Swagger.  
-- Implementação de **HATEOAS** e **rotas de busca com paginação e ordenação**.
+- Cliente faz login no app → seleciona uma mesa (QR code) → faz pedidos
+- Pedido cria comanda automática e marca a mesa como `OCUPADA`
+- Garçom acompanha pedidos da mesa e avança status (`ABERTO → EM_PREPARO → PRONTO → ENTREGUE`)
+- Cliente paga a conta (PIX, crédito, débito ou dinheiro) → API aprova, marca pedidos como ENTREGUE em cascata e libera a mesa
+
+Cardápio, categorias, avaliações e histórico vivem em outra API (Java), por divisão de responsabilidade do squad.
 
 ---
 
-## 🧩 Visão Geral e Arquitetura
+## 🏗️ Arquitetura
 
-O projeto segue o padrão **Domain-Driven Design (DDD)** e aplica a **Clean Architecture**, garantindo separação de responsabilidades e baixo acoplamento entre camadas.
+Clean Architecture com 4 camadas. Sem acoplamento entre Domain e Infraestrutura — o repositório é uma interface no Domain implementada na Infrastructure.
 
-```mermaid
-flowchart TD
-    subgraph API_Camada_de_Controllers
-        A[Controllers / HATEOAS / Swagger]
-    end
-
-    subgraph Application_Casos_de_Uso
-        B[Services / DTOs / Validations]
-    end
-
-    subgraph Domain_Entidades_e_Regras_de_Negocio
-        C[Entities / Value Objects / Regras de Domínio]
-    end
-
-    subgraph Infrastructure_Banco_e_Integracoes
-        D[EF Core / Repositórios]
-        E[(Oracle Database)]
-    end
-
-    A --> B
-    B --> C
-    B --> D
-    D --> E
+```
+┌───────────────────────────────────────────────┐
+│  Atendimentos.Api          (Controllers/HTTP) │
+└────────────────────┬──────────────────────────┘
+                     │
+┌────────────────────▼──────────────────────────┐
+│  Atendimentos.Application  (Services / DTOs)  │
+└────────────────────┬──────────────────────────┘
+                     │
+┌────────────────────▼──────────────────────────┐
+│  Atendimentos.Domain       (Entities + I*)    │
+└────────────────────┬──────────────────────────┘
+                     │
+┌────────────────────▼──────────────────────────┐
+│  Atendimentos.Infrastructure (EF Core/Oracle) │
+└───────────────────────────────────────────────┘
 ```
 
 ---
 
-## ⚙️ Tecnologias Utilizadas
+## ⚙️ Tecnologias
 
-| Categoria | Tecnologia |
-|------------|-------------|
-| Linguagem | **C# (.NET 8)** |
-| Framework Web | **ASP.NET Core Web API** |
-| ORM | **Entity Framework Core (Oracle Provider)** |
-| Banco de Dados | **Oracle Database (FIAP Cloud)** |
-| Documentação | **Swagger / Swashbuckle** |
-| HATEOAS | **Custom Helper com Links RESTful** |
-| Paginação e Filtros | **Linq + Dynamic Sorting Extension** |
-| Injeção de Dependência | **Built-in DI** |
-| Validação | **DataAnnotations / FluentValidation** |
-| Logs | **Serilog** |
-| Versionamento | **Git + GitHub** |
-
----
-
-## 📋 Requisitos do Sistema
-
-### **Requisitos Funcionais**
-- RF01 – CRUD completo de mesas, garçons, comandas e clientes.  
-- RF02 – Abertura e fechamento de comandas.  
-- RF03 – Endpoint `/search` com paginação, ordenação e filtros por nome.  
-- RF04 – Respostas enriquecidas com **HATEOAS**.  
-
-### **Requisitos Não Funcionais**
-- RNF01 – Clean Architecture.  
-- RNF02 – Persistência com EF Core + Oracle.  
-- RNF03 – Retornos HTTP padronizados.  
-- RNF04 – Documentação via Swagger.  
+| Categoria | Stack |
+|---|---|
+| Linguagem | C# (.NET 8) |
+| Web | ASP.NET Core Web API |
+| Auth | JWT (HS256) + BCrypt.Net-Next |
+| ORM | Entity Framework Core (Oracle.EntityFrameworkCore) |
+| Banco | Oracle (FIAP Cloud) |
+| Doc | Swagger / Swashbuckle |
+| HATEOAS | Helper próprio |
+| Logs | Serilog (console + arquivo) |
+| Tracing | OpenTelemetry |
+| Health | AspNetCore.HealthChecks |
+| Testes | xUnit + Moq + WebApplicationFactory |
 
 ---
 
-## 🏗️ Estrutura do Projeto
+## 🗂️ Estrutura do projeto
 
-```bash
+```
 src/
-├── Atendimentos.Api/
+├── Atendimentos.Api/                # camada HTTP
 │   ├── Controllers/
+│   │   ├── Auth/AuthController.cs   # login + register por papel
 │   │   ├── ClientesController.cs
-│   │   ├── ComandasController.cs
 │   │   ├── GarconsController.cs
-│   │   └── MesasController.cs
-│   ├── Helpers/
-│   │   └── HateoasHelper.cs
-│   ├── Program.cs
-│   └── appsettings.json
+│   │   ├── MesasController.cs
+│   │   ├── PedidosController.cs     # CRUD + atualizar status
+│   │   ├── PedidoItensController.cs # itens de cada pedido
+│   │   ├── PagamentosController.cs  # criar / aprovar / recusar
+│   │   └── ComandasController.cs    # legado, mantido p/ compat
+│   ├── Helpers/HateoasHelper.cs
+│   └── Program.cs                   # DI, JWT, Serilog, OpenTelemetry
 │
 ├── Atendimentos.Application/
-│   ├── Services/
-│   │   ├── ClienteService.cs
-│   │   ├── ComandaService.cs
-│   │   ├── GarcomService.cs
-│   │   └── MesaService.cs
-│   └── DTOs/
-│       └── ClienteCreateDto.cs
+│   ├── DTOs/
+│   │   ├── Auth/                    # RegisterClienteDto, LoginDto, ...
+│   │   ├── AtualizarStatusPedidoDto.cs
+│   │   └── CriarPagamentoDto.cs
+│   └── Services/
+│       ├── Auth/AuthService.cs      # BCrypt + JWT
+│       ├── PedidoService.cs         # ocupa/libera mesa em cascata
+│       ├── PedidoItemService.cs
+│       └── PagamentoService.cs      # aprovar → fechar conta
 │
 ├── Atendimentos.Domain/
-│   ├── Entities/
-│   │   ├── Cliente.cs
-│   │   ├── Comanda.cs
-│   │   ├── Garcom.cs
-│   │   └── Mesa.cs
-│   └── Repositories/
+│   ├── Entities/                    # Cliente, Garcom, Mesa, Pedido, ...
+│   ├── Enums/                       # MesaStatus, UsuarioRole, ...
+│   └── Repositories/                # I*Repository (interfaces)
 │
 └── Atendimentos.Infrastructure/
-    ├── Context/
-    │   └── AtendimentosDbContext.cs
-    ├── Repositories/
-    └── Migrations/
+    ├── Context/AtendimentosDbContext.cs
+    ├── Migrations/
+    └── Repositories/                # implementações EF Core
 ```
 
 ---
 
-## 🗃️ Entidades Principais
+## 🗃️ Entidades
 
-### 👤 Cliente
-- `Nome`
-- `CPF`
-- `Telefone`
-
-### 🧑‍🍳 Garçom
-- `Nome`
-- `Matricula`
-- `Telefone`
-- `Ativo`
-
-### 🪑 Mesa
-- `Numero`
-- `Capacidade`
-- `Status`
-- `Localizacao`
-
-### 🧾 Comanda
-- `MesaId`
-- `GarcomId`
-- `ClienteId`
-- `DataAbertura`
-- `DataFechamento`
-- `ValorTotal`
-- `Status`
+| Entidade | Campos principais |
+|---|---|
+| **Usuario** | `Id`, `Nome`, `Email`, `SenhaHash` (BCrypt), `Role` (Cliente/Garcom/Admin), `DataNascimento`, `Telefone`, `CPF`, `Matricula`, `AdminKey` |
+| **Cliente / Garcom** | Specializações de Usuario com campos próprios |
+| **Mesa** | `Numero`, `Capacidade`, `Status` (Livre/Ocupada/AguardandoAtendimento), `Localizacao`, `QrCode` |
+| **Pedido** | `ClienteId`, `GarcomId`, `MesaId`, `DataPedido`, `ValorTotal`, `Status` (ABERTO → EM_PREPARO → PRONTO → ENTREGUE; ou CANCELADO) |
+| **PedidoItem** | `PedidoId`, `ItemCardapioId` (FK lógico p/ API Java), `Quantidade`, `PrecoMomento`, `Subtotal` |
+| **Pagamento** | `PedidoId`, `Valor`, `MetodoPagamento` (PIX/CREDITO/DEBITO/DINHEIRO), `Status` (PENDENTE → APROVADO/RECUSADO) |
 
 ---
 
-## 🚀 Configuração e Execução
+## 🚀 Como rodar
 
-### 1️⃣ Restaurar dependências
+### Pré-requisitos
+- .NET 8 SDK
+- Acesso a um banco Oracle (FIAP Cloud serve)
+
+### 1) Clone e restore
 ```bash
+git clone https://github.com/annabonfim/pedix-dotnet-api.git
+cd pedix-dotnet-api
 dotnet restore
 ```
 
-### 2️⃣ Compilar o projeto
-```bash
-dotnet build
-```
-
-### 3️⃣ Rodar as migrações
-```bash
-dotnet ef database update --project src/Atendimentos.Infrastructure --startup-project src/Atendimentos.Api
-```
-
-### 4️⃣ Executar a API
-```bash
-dotnet run --project src/Atendimentos.Api
-```
-
-Acesse 👉 **[http://localhost:5070/swagger](http://localhost:5070/swagger)**
-
----
-
-## 🧱 Migrations e Banco de Dados
-
-O projeto utiliza **Entity Framework Core (Oracle Provider)**, com migrações automáticas para versionamento de schema.  
-O contexto principal é `AtendimentosDbContext`.
-
----
-
-## 🌐 Endpoints Principais (Swagger)
-
-| Entidade | Método | Endpoint | Descrição |
-|-----------|---------|-----------|------------|
-| **Clientes** | `GET` | `/api/clientes` | Lista todos os clientes |
-|  | `GET` | `/api/clientes/{id}` | Busca cliente por ID (com links HATEOAS) |
-|  | `POST` | `/api/clientes` | Cria cliente |
-|  | `GET` | `/api/clientes/search` | Busca clientes com paginação e ordenação |
-|  | `DELETE` | `/api/clientes/{id}` | Remove cliente |
-| **Garçons** | `GET` | `/api/garcons` | Lista garçons |
-| **Mesas** | `GET` | `/api/mesas` | Lista mesas |
-| **Comandas** | `POST` | `/api/comandas` | Cria comanda |
-
----
-
-## 💾 Exemplos de Uso (Swagger)
-
-### 🔹 Criar Cliente
-```json
-POST /api/clientes
-{
-  "nome": "Maria Eduarda Araujo Penas",
-  "cpf": "12345678900",
-  "telefone": "11999998888"
-}
-```
-
-### 🔹 Buscar Clientes com Paginação
-```
-GET /api/clientes/search?nome=maria&page=1&pageSize=5&sortBy=Nome&order=asc
-```
-
-Exemplo de retorno com **HATEOAS**:
+### 2) Configure o banco
+Crie `src/Atendimentos.Api/appsettings.Development.json` (gitignored):
 ```json
 {
-  "data": {
-    "id": "a5d2c4f8-9a41-4f21-8b77-d07a23bfa0e3",
-    "nome": "Maria Eduarda Araujo Penas",
-    "cpf": "12345678900",
-    "telefone": "11999998888"
+  "ConnectionStrings": {
+    "OracleDb": "Data Source=oracle.fiap.com.br:1521/ORCL;User Id=rmXXXXXX;Password=YOUR_PASSWORD"
   },
-  "links": [
-    {"rel":"self","href":"/api/clientes/a5d2c4f8-9a41-4f21-8b77-d07a23bfa0e3","method":"GET"},
-    {"rel":"update","href":"/api/clientes/a5d2c4f8-9a41-4f21-8b77-d07a23bfa0e3","method":"PUT"},
-    {"rel":"delete","href":"/api/clientes/a5d2c4f8-9a41-4f21-8b77-d07a23bfa0e3","method":"DELETE"},
-    {"rel":"collection","href":"/api/clientes","method":"GET"}
-  ]
+  "Jwt": {
+    "Key": "uma_chave_secreta_de_pelo_menos_32_caracteres_aqui",
+    "Issuer": "Atendimentos.Api",
+    "Audience": "Atendimentos.Client"
+  },
+  "AdminSettings": {
+    "AdminKey": "SUA_CHAVE_MASTER_PARA_REGISTRAR_ADMIN"
+  }
 }
 ```
 
----
-
-## 🔗 Implementações Avançadas (HATEOAS e Search)
-
-### ✅ HATEOAS
-- Implementado via classe `HateoasHelper.cs`  
-- Cada resposta inclui links RESTful (`self`, `update`, `delete`, `collection`)
-- Implementado para `Clientes`, `Garçons`, `Mesas` e `Comandas`
-
-### ✅ Search com Paginação, Filtros e Ordenação
-- Endpoint: `/api/{entidade}/search`
-- Parâmetros:  
-  `nome`, `page`, `pageSize`, `sortBy`, `order`
-- Retorno inclui:
-  - Lista de itens paginados
-  - Total de páginas
-  - Links `next`, `prev`, `self`
-
----
-
-## 🧠 Regras de Negócio Implementadas
-
-- Uma **comanda só pode ser aberta** se a mesa estiver **disponível**.  
-- Ao **fechar uma comanda**, a mesa volta a ficar **disponível**.  
-- **Garçons inativos** não podem abrir comandas.  
-- **Clientes** podem ter múltiplas comandas abertas.  
-- Validação via **DTOs + DataAnnotations**.  
-- Paginação e ordenação dinâmicas nos endpoints `/search`.  
-
----
-
-# 🚀 — Observabilidade e Testes Automatizados
-
-Nesta etapa do projeto, foram adicionadas funcionalidades avançadas de **monitoramento, observabilidade e testes automatizados**, elevando o sistema para um padrão mais próximo de aplicações reais de mercado.
-
----
-
-## 📊 Monitoramento e Observabilidade
-
-### ❤️ Health Checks
-
-Foi implementado um endpoint de verificação de saúde da aplicação:
-
-Com a API rodando, acesse:
-
-```
-http://localhost:5070/health
+### 3) Aplique as migrations
+```bash
+dotnet ef database update \
+  --project src/Atendimentos.Infrastructure \
+  --startup-project src/Atendimentos.Api
 ```
 
-📌 **Objetivo:**
+### 4) Suba a API
+```bash
+dotnet run --project src/Atendimentos.Api --urls "http://0.0.0.0:5070"
+```
 
-* Verificar saúde da aplicação
-* Validar conexão com banco
+Acesse:
+- Swagger: <http://localhost:5070/swagger>
+- Health: <http://localhost:5070/health>
 
+### Build pra mobile (mesma LAN)
+Se o app mobile rodar em celular físico, use o IP do Mac (não `localhost`):
+```bash
+dotnet run --project src/Atendimentos.Api --urls "http://0.0.0.0:5070"
+# o app aponta para http://<seu-ip-local>:5070/api
+```
 
-```http
+---
+
+## 🌐 Endpoints
+
+### 🔐 Auth (`/api/auth`)
+| Método | Rota | Descrição |
+|---|---|---|
+| POST | `/register-cliente` | Cadastra cliente |
+| POST | `/register-garcom` | Cadastra garçom |
+| POST | `/register-admin` | Cadastra admin (exige `adminKey`) |
+| POST | `/login-cliente` | Login + JWT (valida que role é Cliente) |
+| POST | `/login-garcom` | Login + JWT (valida role Garcom) |
+| POST | `/login-admin` | Login + JWT (valida role Admin) |
+
+### 🪑 Mesas (`/api/mesas`)
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/` | Lista mesas (com status) |
+| GET | `/{id}` | Detalhe da mesa |
+| POST | `/` | Cria mesa |
+| PUT | `/{id}` | Atualiza dados da mesa |
+| PUT | `/{id}/status` | Atualiza só o status (`0`=Livre, `1`=Ocupada, `2`=AguardandoAtendimento) |
+| DELETE | `/{id}` | Remove mesa |
+
+### 🧾 Pedidos (`/api/pedidos`)
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/` | Lista todos |
+| GET | `/{id}` | Detalhe |
+| GET | `/cliente/{clienteId}` | Pedidos do cliente (comanda dele) |
+| GET | `/mesa/{mesaId}` | Pedidos da mesa (visão garçom) |
+| GET | `/garcom/{garcomId}` | Pedidos atendidos por um garçom |
+| POST | `/?clienteId=X&garcomId=Y&mesaId=Z` | Cria pedido vazio — automaticamente marca mesa como **OCUPADA** |
+| PUT | `/{id}/status` | Avança status. Quando vai pra `ENTREGUE`, se a mesa não tem mais pedido ativo, ela volta pra **LIVRE** |
+
+### 🍽️ Itens-Pedido (`/api/pedido-itens`)
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/pedido/{pedidoId}` | Itens de um pedido |
+| POST | `/?pedidoId=X&itemCardapioId=Y&quantidade=N&precoMomento=P` | Adiciona item (preço congelado no momento do pedido) |
+| DELETE | `/{id}` | Remove item |
+
+### 💳 Pagamentos (`/api/pagamentos`)
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/` | Lista todos |
+| GET | `/{id}` | Detalhe |
+| GET | `/pedido/{pedidoId}` | Pagamentos de um pedido |
+| POST | `/?pedidoId=X&valor=V&metodoPagamento=PIX` | Cria pagamento PENDENTE |
+| PUT | `/{id}/aprovar` | Aprova → **fecha a conta** marcando os pedidos do cliente naquela mesa como ENTREGUE em cascata |
+| PUT | `/{id}/recusar` | Marca como RECUSADO |
+
+---
+
+## 🔐 Autenticação
+
+JWT assinado com HS256, BCrypt no hash da senha.
+
+### Fluxo
+1. Cliente: `POST /api/auth/register-cliente` → cria
+2. Cliente: `POST /api/auth/login-cliente` → recebe `{ token }`
+3. Mobile guarda o token e manda no header de cada request:
+   ```
+   Authorization: Bearer eyJhbGciOi...
+   ```
+
+### Claims dentro do token
+| Claim | Valor |
+|---|---|
+| `nameidentifier` | UUID do usuário |
+| `name` | Nome |
+| `emailaddress` | E-mail |
+| `role` | `Cliente` / `Garcom` / `Admin` |
+| `exp` | Expira em 7 dias |
+
+### Por que login separado por papel?
+A tela de login no app força a escolha do perfil. Os endpoints `/login-cliente`, `/login-garcom`, `/login-admin` validam que o usuário **realmente é desse papel** — assim um cliente não consegue se passar por garçom só com email/senha dele.
+
+### AdminKey
+`POST /api/auth/register-admin` exige um campo `adminKey` que precisa bater com o valor em `appsettings.json:AdminSettings.AdminKey`. Sem isso, qualquer um podia se registrar como admin.
+
+---
+
+## 🧠 Regras de negócio
+
+- **Mesa OCUPADA automática**: ao criar pedido, `MesaService.AlterarStatus(Ocupada)` é chamado em cascata.
+- **Mesa LIVRE automática**: quando um pedido vira `ENTREGUE`, o `PedidoService` checa se ainda existe algum pedido ativo (não-ENTREGUE e não-CANCELADO) naquela mesa. Se não tem mais nada ativo → mesa volta pra `LIVRE`.
+- **CANCELADO não libera mesa**: cliente pode ter cancelado um item mas continuar à mesa pedindo outras coisas.
+- **Pagamento APROVADO fecha conta**: ao aprovar pagamento, todos os pedidos ativos do mesmo cliente naquela mesa são marcados como `ENTREGUE` em cascata, o que dispara a liberação da mesa.
+- **Comanda por cliente, não por mesa**: cada cliente tem sua própria sequência de pedidos. Privacidade entre clientes da mesma mesa e pagamento individual sem precisar dividir conta.
+- **Status válidos do pedido**: `ABERTO`, `EM_PREPARO`, `PRONTO`, `ENTREGUE`, `CANCELADO`. Qualquer outro valor é rejeitado por validação.
+
+---
+
+## 📈 Observabilidade (Health, Logs, Tracing)
+
+### Health Check
+```
 GET /health
 ```
+Retorna status da API + conexão com banco.
 
-### ✔️ Funcionalidades:
+### Logs estruturados (Serilog)
+- Console em dev
+- Arquivo rotativo em `logs/log-YYYY-MM-DD.txt`
+- Inclui método HTTP, rota, status, latência
 
-* Verificação do status da API
-* Verificação da conexão com o banco de dados
-* Retorno estruturado em JSON
-
-### 📌 Exemplo de resposta:
-
-```json
-{
-  "status": "Healthy",
-  "totalDuration": "00:00:00.013",
-  "checks": [
-    {
-      "name": "Database",
-      "status": "Healthy",
-      "duration": "00:00:00.005"
-    }
-  ]
-}
-```
+### Tracing distribuído (OpenTelemetry)
+- Cada request gera um `TraceId`
+- Exportado pra console em dev
 
 ---
 
-### 🧾 Logging Estruturado (Serilog)
+## 🧪 Testes automatizados
 
-Foi configurado logging estruturado utilizando **Serilog**, permitindo rastreamento detalhado da aplicação.
-
-
-### ✔️ Implementado:
-
-* Logs de requisições HTTP
-* Logs de erro e exceções
-* Saída no console
-* Persistência em arquivos (`/logs`)
-
-### 📌 Exemplo:
-
-```
-HTTP GET /api/clientes responded 200 in 45 ms
-```
-
----
-
-### 🔍 Tracing e Métricas (OpenTelemetry)
-
-Foi implementado **OpenTelemetry** para rastreamento distribuído e coleta de métricas.
-
-Após rodar a aplicação:
-
-📁 Será criada automaticamente a pasta:
-
-```
-/logs
-```
-
-📌 **Arquivos:**
-
-* `log-YYYY-MM-DD.txt`
-
-📌 **Quando usar:**
-
-* Para analisar erros
-* Para rastrear requisições
-
-### ✔️ Funcionalidades:
-
-* Rastreamento de requisições HTTP
-* Tempo de resposta (latência)
-* Métricas de desempenho
-* Exportação para console
-
-### 📌 Exemplo:
-
-```
-Activity.TraceId: ...
-Request GET /api/clientes
-Duration: 45ms
-```
-
----
-
-## 🧪 Testes Automatizados — Padrão AAA
-
-### 🔹 Testes Unitários
-
-Implementados com:
-
-* **xUnit**
-* **Moq**
-* Padrão **AAA (Arrange, Act, Assert)**
-
-### ✔️ Cenários testados:
-
-* Criação de cliente
-* Consulta por ID
-* Exclusão
-
----
-
-### 🔹 Testes de Integração
-
-Implementados utilizando:
-
-* **WebApplicationFactory**
-* **InMemory Database (EF Core)**
-
-### ✔️ Cenários:
-
-* `POST /api/clientes`
-* `GET /api/clientes`
-
-### 🎯 Benefícios:
-
-* Teste do fluxo completo da API
-* Sem dependência de banco real
-* Execução rápida e isolada
-
----
-
-## 🧪 Execução dos Testes
-
-Para executar os testes:
+Padrão **AAA** (Arrange / Act / Assert), com xUnit + Moq.
 
 ```bash
 dotnet test
 ```
 
----
-
-## 📸 Evidências (Sprint 3)
-
-
-### 🔹 Swagger (visão geral)
-![Swagger](images/swagger-home.png)
+Cobre:
+- **Unit**: services (criar cliente, alterar status de pedido, aprovar pagamento)
+- **Integration**: `WebApplicationFactory` + EF Core InMemory, testando os endpoints de ponta a ponta
 
 ---
 
-### 🔹 Execução do endpoint /api/clientes
-![Swagger Response](images/api-clientes-swagger-response.png)
-
----
-
-### 🔹 Resposta JSON da API
-![JSON](images/api-clientes-json.png)
-
----
-
-### 🔹 Health Check
-![Health](images/health-check.png)
-
----
-
-### 🔹 Logs (Serilog)
-
-![Logs Serilog](images/logs-serilog.png)
-
----
-
-### 🔹 OpenTelemetry (Tracing e Métricas)
-
-![OpenTelemetry](images/opentelemetry-trace.png)
-
----
-
-### 🔹 Testes Automatizados
-
-![TesteAutomatizado](images/dotnet-test.png)
-
----
-
-## 🧠 Evolução do Projeto
-
-Com a Sprint 3, o sistema passou a contar com:
-
-* Monitoramento de saúde da aplicação
-* Logging estruturado
-* Rastreamento de requisições
-* Métricas de desempenho
-* Testes automatizados completos
-
----
-
-## 🏆 Conclusão da Sprint
-
-A aplicação agora possui características essenciais de sistemas modernos:
-
-* Alta observabilidade
-* Melhor diagnóstico de erros
-* Maior confiabilidade
-* Código testável e escalável
-
----
-
-
-## 👥 Integrantes do Grupo
+## 👥 Time
 
 | Nome | RM | Função |
-|-------|-----|--------|
-| **Maria Eduarda Araujo Penas** | RM560944 | Desenvolvedora Backend/ Infra |
-| **Alane Rocha da Sila** | RM561052 | Desenvolvedora Backend |
-| **Anna Beatriz de Araujo Bonfim** | RM559561 | Desenvolvedora Front |
+|---|---|---|
+| Maria Eduarda Araujo Penas | RM560944 | Backend / Infra |
+| Alane Rocha da Silva | RM561052 | Backend (API Java de cardápio) |
+| Anna Beatriz de Araujo Bonfim | RM559561 | Mobile + integração + auth/pedido/pagamento |
 
----
-
-## 👩‍💻 Autoria
-
-Desenvolvido por:
-
-- 💻 **Maria Eduarda Araujo Penas**  
-- 📧 **eduarda.mpenas@gmail.com**  
-- 🐙 **[GitHub: DudaAraujo14](https://github.com/DudaAraujo14)**  
-
----
-
-## 📚 Orientado para
-
-🎓 **Projeto acadêmico FIAP — Advanced Business Development with .NET**  
-🗓️ **Entrega: abril / 2026**
+🎓 **FIAP — 2TDSPS — Challenge Oracle 2026 — CodeGirls**
