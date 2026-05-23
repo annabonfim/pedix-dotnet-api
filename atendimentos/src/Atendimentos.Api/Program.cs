@@ -227,6 +227,17 @@ builder.Services.AddScoped<
     PedidoItemService>();
 
 // =====================================================
+// 💳 PAGAMENTO
+// =====================================================
+builder.Services.AddScoped<
+    IPagamentoRepository,
+    PagamentoRepository>();
+
+builder.Services.AddScoped<
+    IPagamentoService,
+    PagamentoService>();
+
+// =====================================================
 // ⚙️ CONTROLLERS
 // =====================================================
 builder.Services.AddControllers();

@@ -56,5 +56,48 @@ namespace Atendimentos.Infrastructure.Repositories
                 .FirstOrDefaultAsync(
                     p => p.Id == id);
         }
+
+        // =====================================================
+        // 🔄 ATUALIZAR PEDIDO (status, valor)
+        // =====================================================
+        public async Task AtualizarAsync(
+            Pedido pedido)
+        {
+            _context.Pedidos.Update(pedido);
+            await _context.SaveChangesAsync();
+        }
+
+        // =====================================================
+        // 🔍 LISTAR POR CLIENTE
+        // =====================================================
+        public async Task<List<Pedido>>
+            ObterPorClienteAsync(Guid clienteId)
+        {
+            return await _context.Pedidos
+                .Where(p => p.ClienteId == clienteId)
+                .ToListAsync();
+        }
+
+        // =====================================================
+        // 🔍 LISTAR POR MESA
+        // =====================================================
+        public async Task<List<Pedido>>
+            ObterPorMesaAsync(Guid mesaId)
+        {
+            return await _context.Pedidos
+                .Where(p => p.MesaId == mesaId)
+                .ToListAsync();
+        }
+
+        // =====================================================
+        // 🔍 LISTAR POR GARÇOM
+        // =====================================================
+        public async Task<List<Pedido>>
+            ObterPorGarcomAsync(Guid garcomId)
+        {
+            return await _context.Pedidos
+                .Where(p => p.GarcomId == garcomId)
+                .ToListAsync();
+        }
     }
 }

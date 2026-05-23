@@ -14,5 +14,19 @@ namespace Atendimentos.Application.Services
 
         Task<Pedido?>
             ObterPorIdAsync(Guid id);
+
+        Task<Pedido?>
+            AtualizarStatusAsync(
+                Guid id,
+                string status);
+
+        Task<List<Pedido>>
+            ObterPorClienteAsync(Guid clienteId);
+
+        Task<List<Pedido>>
+            ObterPorMesaAsync(Guid mesaId);
+
+        Task<List<Pedido>>
+            ObterPorGarcomAsync(Guid garcomId);
     }
 }

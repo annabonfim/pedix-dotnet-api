@@ -1,0 +1,21 @@
+# Secrets / config local
+appsettings.Development.json
+
+# Build output
+bin/
+obj/
+out/
+
+# Logs
+logs/
+*.log
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

@@ -11,5 +11,17 @@ namespace Atendimentos.Domain.Repositories
 
         Task<Pedido?> ObterPorIdAsync(
             Guid id);
+
+        Task AtualizarAsync(
+            Pedido pedido);
+
+        Task<List<Pedido>> ObterPorClienteAsync(
+            Guid clienteId);
+
+        Task<List<Pedido>> ObterPorMesaAsync(
+            Guid mesaId);
+
+        Task<List<Pedido>> ObterPorGarcomAsync(
+            Guid garcomId);
     }
 }

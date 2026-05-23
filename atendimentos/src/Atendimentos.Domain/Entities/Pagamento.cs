@@ -53,6 +53,8 @@ namespace Atendimentos.Domain.Entities
 
         protected Pagamento()
         {
+            MetodoPagamento = string.Empty;
+            Status = string.Empty;
         }
     }
 }
