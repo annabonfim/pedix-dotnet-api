@@ -317,12 +317,11 @@ var app = builder.Build();
 // =====================================================
 // 📘 SWAGGER
 // =====================================================
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-
-    app.UseSwaggerUI();
-}
+// Projeto acadêmico: deixa o Swagger ligado em produção também
+// pra o professor e o squad poderem testar os endpoints direto pela UI
+// sem precisar de Postman/Insomnia.
+app.UseSwagger();
+app.UseSwaggerUI();
 
 // =====================================================
 // 🧾 REQUEST LOGGING
