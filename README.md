@@ -2,13 +2,13 @@
 
 API REST em **ASP.NET Core 8** que cuida do **atendimento em restaurante**: autenticação por papel (cliente, garçom, gerente), mesas, pedidos, itens-pedido e pagamentos. Persistência em **Oracle**, arquitetura **Clean Architecture** + **DDD**, JWT com BCrypt.
 
-É a API consumida pelo app mobile **Pedix** ([github.com/annabonfim/pedix-app](https://github.com/annabonfim/pedix-app)) — junto com a [API Java](https://github.com/alanerochaa/pedix-api) que serve o cardápio.
+É a API consumida pelo [app mobile Pedix](https://github.com/annabonfim/pedix-app) — junto com a [API Java](https://github.com/alanerochaa/pedix-api) que serve o cardápio.
 
 > Sprint 4 / Challenge FIAP 2026 — CodeGirls 👩‍💻
 
-🌐 **Deploy ao vivo**: <https://pedix-dotnet-api-anna.azurewebsites.net>
-📑 **Swagger**: <https://pedix-dotnet-api-anna.azurewebsites.net/swagger>
-❤️ **Health**: <https://pedix-dotnet-api-anna.azurewebsites.net/health>
+- 🌐 **Deploy ao vivo**: <https://pedix-dotnet-api-anna.azurewebsites.net>
+- 📑 **Swagger**: <https://pedix-dotnet-api-anna.azurewebsites.net/swagger>
+- ❤️ **Health**: <https://pedix-dotnet-api-anna.azurewebsites.net/health>
 
 ---
 
@@ -109,9 +109,9 @@ src/
 │   │   └── CriarPagamentoDto.cs
 │   └── Services/
 │       ├── Auth/AuthService.cs      # BCrypt + JWT
-│       ├── PedidoService.cs         # ocupa/libera mesa em cascata
+│       ├── PedidoService.cs         # ocupa mesa ao criar pedido
 │       ├── PedidoItemService.cs
-│       └── PagamentoService.cs      # aprovar → fechar conta
+│       └── PagamentoService.cs      # aprovar → fecha conta + libera mesa
 │
 ├── Atendimentos.Domain/
 │   ├── Entities/                    # Cliente, Garcom, Mesa, Pedido, ...
@@ -157,7 +157,7 @@ Crie `src/Atendimentos.Api/appsettings.Development.json` (gitignored):
 ```json
 {
   "ConnectionStrings": {
-    "OracleDb": "Data Source=oracle.fiap.com.br:1521/ORCL;User Id=rmXXXXXX;Password=YOUR_PASSWORD"
+    "DefaultConnection": "User Id=rmXXXXXX;Password=YOUR_PASSWORD;Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=oracle.fiap.com.br)(PORT=1521))(CONNECT_DATA=(SID=ORCL)))"
   },
   "Jwt": {
     "Key": "uma_chave_secreta_de_pelo_menos_32_caracteres_aqui",
@@ -226,7 +226,7 @@ dotnet run --project src/Atendimentos.Api --urls "http://0.0.0.0:5070"
 | GET | `/mesa/{mesaId}` | Pedidos da mesa (visão garçom) |
 | GET | `/garcom/{garcomId}` | Pedidos atendidos por um garçom |
 | POST | `/?clienteId=X&garcomId=Y&mesaId=Z` | Cria pedido vazio — automaticamente marca mesa como **OCUPADA** |
-| PUT | `/{id}/status` | Avança status. Quando vai pra `ENTREGUE`, se a mesa não tem mais pedido ativo, ela volta pra **LIVRE** |
+| PUT | `/{id}/status` | Avança status do pedido (sem afetar mesa — mesa só libera no pagamento aprovado) |
 
 ### 🍽️ Itens-Pedido (`/api/pedido-itens`)
 | Método | Rota | Descrição |
@@ -450,9 +450,9 @@ curl -s -X PUT $BASE/api/pagamentos/<id>/aprovar \
 ## 🧠 Regras de negócio
 
 - **Mesa OCUPADA automática**: ao criar pedido, `MesaService.AlterarStatus(Ocupada)` é chamado em cascata.
-- **Mesa LIVRE automática**: quando um pedido vira `ENTREGUE`, o `PedidoService` checa se ainda existe algum pedido ativo (não-ENTREGUE e não-CANCELADO) naquela mesa. Se não tem mais nada ativo → mesa volta pra `LIVRE`.
+- **Mesa libera SÓ no pagamento aprovado**: marcar pedido como `ENTREGUE` significa "garçom levou a comida pra mesa" — não que a conta foi paga. Por isso `PUT /pedidos/{id}/status` não toca na mesa. Só `PUT /pagamentos/{id}/aprovar` dispara a liberação.
+- **Liberação em cascata**: ao aprovar pagamento, o `PagamentoService` marca todos os pedidos ativos daquele cliente naquela mesa como `ENTREGUE`, depois chama `LiberarMesaSeOciosaAsync`. Se ainda existe outro cliente com pedido ativo na mesma mesa, a mesa continua ocupada.
 - **CANCELADO não libera mesa**: cliente pode ter cancelado um item mas continuar à mesa pedindo outras coisas.
-- **Pagamento APROVADO fecha conta**: ao aprovar pagamento, todos os pedidos ativos do mesmo cliente naquela mesa são marcados como `ENTREGUE` em cascata, o que dispara a liberação da mesa.
 - **Comanda por cliente, não por mesa**: cada cliente tem sua própria sequência de pedidos. Privacidade entre clientes da mesma mesa e pagamento individual sem precisar dividir conta.
 - **Status válidos do pedido**: `ABERTO`, `EM_PREPARO`, `PRONTO`, `ENTREGUE`, `CANCELADO`. Qualquer outro valor é rejeitado por validação.
 
