@@ -13,6 +13,12 @@ namespace Atendimentos.Application.Services
         private readonly IMesaRepository _mesaRepository;
 
         // Status válidos pra um pedido. Recusa qualquer outro valor.
+        // FLUXO:
+        //   ABERTO → EM_PREPARO → PRONTO → ENTREGUE   (transições do garçom)
+        //   ENTREGUE → FINALIZADO                     (transição via pagamento)
+        //   qualquer → CANCELADO                      (cancelamento)
+        // ENTREGUE = comida na mesa, conta em aberto.
+        // FINALIZADO = pagamento aprovado, conta fechada (libera mesa).
         private static readonly HashSet<string> _statusValidos =
             new(StringComparer.OrdinalIgnoreCase)
             {
@@ -20,24 +26,27 @@ namespace Atendimentos.Application.Services
                 "EM_PREPARO",
                 "PRONTO",
                 "ENTREGUE",
+                "FINALIZADO",
                 "CANCELADO",
             };
 
         // Status terminais (pedido não conta mais como "ativo" pra ocupar mesa).
+        // ENTREGUE NÃO é terminal — cliente ainda precisa pagar pra fechar a conta.
         private static readonly HashSet<string> _statusTerminais =
             new(StringComparer.OrdinalIgnoreCase)
             {
-                "ENTREGUE",
+                "FINALIZADO",
                 "CANCELADO",
             };
 
         // Status que devem disparar a checagem de liberação de mesa.
         // CANCELADO NÃO entra: cliente pode ter cancelado mas continuar na mesa
-        // querendo pedir outra coisa; só ENTREGUE significa "fechou a conta".
+        // querendo pedir outra coisa; só FINALIZADO (= pagamento aprovado)
+        // significa que a conta fechou de verdade.
         private static readonly HashSet<string> _statusLiberaMesa =
             new(StringComparer.OrdinalIgnoreCase)
             {
-                "ENTREGUE",
+                "FINALIZADO",
             };
 
         // =====================================================
@@ -121,10 +130,11 @@ namespace Atendimentos.Application.Services
 
             await _repository.AtualizarAsync(pedido);
 
-            // ATENÇÃO: NÃO liberar a mesa aqui, mesmo se o status for ENTREGUE.
-            //   ENTREGUE significa apenas "o garçom levou a comida".
-            //   A mesa só libera quando a conta é PAGA (PagamentoService chama
-            //   LiberarMesaSeOciosaAsync explicitamente após aprovar pagamento).
+            // ATENÇÃO: NÃO liberar mesa aqui mesmo se status for ENTREGUE/FINALIZADO.
+            //   ENTREGUE = garçom levou a comida; conta segue em aberto.
+            //   FINALIZADO = pagamento aprovado; mesa pode ser liberada.
+            //   A liberação de mesa só é disparada por PagamentoService após
+            //   aprovar pagamento (chama LiberarMesaSeOciosaAsync explicitamente).
 
             return pedido;
         }

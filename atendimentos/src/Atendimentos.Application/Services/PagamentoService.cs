@@ -21,11 +21,13 @@ namespace Atendimentos.Application.Services
                 "DINHEIRO",
             };
 
-        // Status que já são terminais — não viram ENTREGUE de novo.
+        // Status que já são terminais — não viram FINALIZADO de novo.
+        // ENTREGUE NÃO é terminal: cliente já recebeu a comida mas ainda não
+        // pagou; quando pagar, esses pedidos ENTREGUE viram FINALIZADO.
         private static readonly HashSet<string> _statusTerminais =
             new(StringComparer.OrdinalIgnoreCase)
             {
-                "ENTREGUE",
+                "FINALIZADO",
                 "CANCELADO",
             };
 
@@ -116,7 +118,8 @@ namespace Atendimentos.Application.Services
         // =====================================================
         // Aprovar pagamento = fechar a conta do cliente na mesa:
         //   1. Pagamento vira APROVADO
-        //   2. Todos os pedidos ativos do cliente naquela mesa viram ENTREGUE
+        //   2. Todos os pedidos não-cancelados do cliente naquela mesa viram FINALIZADO
+        //      (inclusive os já ENTREGUE — agora viram FINALIZADO = pago + fechado)
         //   3. Mesa volta pra LIVRE (se não tem mais pedido ativo de ninguém)
         //
         // ENTREGUE sozinho NÃO libera a mesa — o garçom pode entregar comida
@@ -135,7 +138,7 @@ namespace Atendimentos.Application.Services
 
             var mesaId = await FecharContaAsync(pagamento.PedidoId);
 
-            // Depois de marcar os pedidos como ENTREGUE, tenta liberar a mesa.
+            // Depois de marcar os pedidos como FINALIZADO, tenta liberar a mesa.
             // Se ainda há outro cliente com pedido ativo na mesma mesa,
             // o LiberarMesaSeOciosaAsync mantém ela ocupada.
             if (mesaId.HasValue)
@@ -168,7 +171,7 @@ namespace Atendimentos.Application.Services
             foreach (var pedido in pedidosParaFechar)
             {
                 await _pedidoService
-                    .AtualizarStatusAsync(pedido.Id, "ENTREGUE");
+                    .AtualizarStatusAsync(pedido.Id, "FINALIZADO");
             }
 
             return pedidoBase.MesaId;
