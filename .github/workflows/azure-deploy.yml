@@ -1,0 +1,49 @@
+name: Build and deploy .NET API to Azure
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  # Nome do App Service no Azure (precisa bater EXATAMENTE com o que aparece no portal).
+  # Se você criar com nome diferente, troque aqui.
+  AZURE_WEBAPP_NAME: pedix-dotnet-api-anna
+
+  DOTNET_VERSION: '8.0.x'
+  SOLUTION_PATH: atendimentos/Atendimentos.sln
+  PROJECT_PATH:  atendimentos/src/Atendimentos.Api/Atendimentos.Api.csproj
+  PUBLISH_OUTPUT: ${{ github.workspace }}/publish
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore ${{ env.SOLUTION_PATH }}
+
+      - name: Build
+        run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release --no-restore
+
+      - name: Publish
+        run: |
+          dotnet publish ${{ env.PROJECT_PATH }} \
+            --configuration Release \
+            --no-build \
+            --output "${{ env.PUBLISH_OUTPUT }}"
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ${{ env.PUBLISH_OUTPUT }}
