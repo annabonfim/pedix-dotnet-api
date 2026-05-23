@@ -6,6 +6,10 @@ API REST em **ASP.NET Core 8** que cuida do **atendimento em restaurante**: aute
 
 > Sprint 4 / Challenge FIAP 2026 — CodeGirls 👩‍💻
 
+🌐 **Deploy ao vivo**: <https://pedix-dotnet-api-anna.azurewebsites.net>
+📑 **Swagger**: <https://pedix-dotnet-api-anna.azurewebsites.net/swagger>
+❤️ **Health**: <https://pedix-dotnet-api-anna.azurewebsites.net/health>
+
 ---
 
 ## 🧭 Índice
@@ -18,10 +22,11 @@ API REST em **ASP.NET Core 8** que cuida do **atendimento em restaurante**: aute
 6. [Como rodar](#-como-rodar)
 7. [Endpoints](#-endpoints)
 8. [Autenticação](#-autenticação)
-9. [Regras de negócio](#-regras-de-negócio)
-10. [Observabilidade](#-observabilidade-health-logs-tracing)
-11. [Testes](#-testes-automatizados)
-12. [Time](#-time)
+9. [Roteiro de teste — exemplos prontos](#-roteiro-de-teste--exemplos-prontos)
+10. [Regras de negócio](#-regras-de-negócio)
+11. [Observabilidade](#-observabilidade-health-logs-tracing)
+12. [Testes](#-testes-automatizados)
+13. [Time](#-time)
 
 ---
 
@@ -268,6 +273,177 @@ A tela de login no app força a escolha do perfil. Os endpoints `/login-cliente`
 
 ### AdminKey
 `POST /api/auth/register-admin` exige um campo `adminKey` que precisa bater com o valor em `appsettings.json:AdminSettings.AdminKey`. Sem isso, qualquer um podia se registrar como admin.
+
+---
+
+## 🎬 Roteiro de teste — exemplos prontos
+
+Roteiro completo que cobre o fluxo de um cliente entrando no restaurante até pagar a conta. Todos os exemplos batem no deploy: substitua `BASE` por `https://pedix-dotnet-api-anna.azurewebsites.net` no Swagger, Postman, Insomnia ou curl.
+
+> **Credenciais já cadastradas pra teste:**
+> - Cliente: `cliente@pedix.com` / `cliente123`
+> - Garçom: `garcom@pedix.com` / `garcom123`
+> - Gerente: `admin@pedix.com` / `admin123`
+
+### 1️⃣ Cadastrar um cliente novo (opcional, se quiser criar outro)
+
+`POST {{BASE}}/api/auth/register-cliente`
+```json
+{
+  "nome": "João Silva",
+  "email": "joao@email.com",
+  "senha": "joao123",
+  "telefone": "11988887777",
+  "dataNascimento": "1995-08-20T00:00:00"
+}
+```
+**Resposta esperada (201)**: `{ "id": "<guid>", "nome": "João Silva", "email": "...", "role": "Cliente" }`
+
+### 2️⃣ Login como cliente
+
+`POST {{BASE}}/api/auth/login-cliente`
+```json
+{
+  "email": "cliente@pedix.com",
+  "senha": "cliente123"
+}
+```
+**Resposta**: `{ "token": "eyJhbGciOi..." }` — copia esse token, vai usar nas chamadas autenticadas como header:
+```
+Authorization: Bearer eyJhbGciOi...
+```
+
+> Login de garçom e gerente é igual, só troca o endpoint pra `/login-garcom` ou `/login-admin`.
+
+### 3️⃣ Listar mesas disponíveis
+
+`GET {{BASE}}/api/mesas`
+
+**Resposta** (array de mesas):
+```json
+[
+  { "id": "4bbe4788-7452-4776-adaf-93d474aa34ea", "numero": 1, "status": 0, "capacidade": 4, "localizacao": "Salão" },
+  { "id": "ace5d6e2-31b2-476d-a9d2-043224acfc9b", "numero": 5, "status": 1, "capacidade": 4, "localizacao": "Salão principal" }
+]
+```
+> `status`: `0`=Livre, `1`=Ocupada, `2`=Aguardando atendimento. Anota o `id` (Guid) de uma mesa Livre — vai usar no passo 5.
+
+### 4️⃣ Listar garçons
+
+`GET {{BASE}}/api/garcons`
+
+Anota o `id` de um garçom ativo — também usa no passo 5.
+
+### 5️⃣ Criar um pedido vazio
+
+O pedido é criado com `clienteId` + `garcomId` + `mesaId` como query string. **Mesa muda automaticamente pra OCUPADA.**
+
+`POST {{BASE}}/api/pedidos?clienteId=<guid-cliente>&garcomId=<guid-garcom>&mesaId=<guid-mesa>`
+
+Body: vazio.
+
+**Resposta (201)**:
+```json
+{
+  "id": "97854db4-10b3-4c57-893e-8762f5fe0f63",
+  "clienteId": "...",
+  "garcomId": "...",
+  "mesaId": "...",
+  "status": "ABERTO",
+  "valorTotal": 0,
+  "dataPedido": "2026-05-23T02:15:00Z"
+}
+```
+Copia o `id` do pedido — usa nos próximos passos.
+
+### 6️⃣ Adicionar itens ao pedido
+
+Cada chamada adiciona 1 item. O preço fica congelado no momento do pedido (`precoMomento`). Os IDs de item vêm do cardápio Java (ex.: `7` = Hambúrguer Artesanal, `2` = Refrigerante).
+
+`POST {{BASE}}/api/pedido-itens?pedidoId=<guid-pedido>&itemCardapioId=7&quantidade=1&precoMomento=25`
+
+`POST {{BASE}}/api/pedido-itens?pedidoId=<guid-pedido>&itemCardapioId=2&quantidade=1&precoMomento=6`
+
+**Verificar itens adicionados:**
+`GET {{BASE}}/api/pedido-itens/pedido/<guid-pedido>`
+
+### 7️⃣ Avançar o status (garçom)
+
+Sequência válida: `ABERTO → EM_PREPARO → PRONTO → ENTREGUE`. Cada chamada avança um passo.
+
+`PUT {{BASE}}/api/pedidos/<guid-pedido>/status`
+```json
+{ "status": "EM_PREPARO" }
+```
+
+Depois:
+```json
+{ "status": "PRONTO" }
+```
+
+> Pular pra `ENTREGUE` direto também funciona, mas o normal é avançar passo a passo.
+
+### 8️⃣ Pagar a conta
+
+Cria um pagamento pendente para o pedido:
+
+`POST {{BASE}}/api/pagamentos?pedidoId=<guid-pedido>&valor=31&metodoPagamento=PIX`
+
+**Resposta**:
+```json
+{
+  "id": "f1e2d3c4-...",
+  "pedidoId": "...",
+  "valor": 31,
+  "metodoPagamento": "PIX",
+  "status": "PENDENTE"
+}
+```
+Anota o `id` do pagamento.
+
+**Aprovar** (simulando a aprovação da maquininha):
+`PUT {{BASE}}/api/pagamentos/<guid-pagamento>/aprovar`
+
+Body: vazio. **Em cascata:**
+- O pagamento vira `APROVADO`
+- Todos os pedidos ativos desse cliente naquela mesa viram `ENTREGUE`
+- Como não tem mais pedido ativo, a mesa volta pra `LIVRE`
+
+### 9️⃣ Verificar o efeito cascata
+
+`GET {{BASE}}/api/pedidos/<guid-pedido>` → `status: "ENTREGUE"` ✅
+`GET {{BASE}}/api/mesas/<guid-mesa>` → `status: 0` (Livre) ✅
+
+---
+
+### 🧪 Comandos curl prontos (atalho)
+
+Salva uma variável e cola direto no terminal:
+
+```bash
+BASE="https://pedix-dotnet-api-anna.azurewebsites.net"
+
+# Login (guarda o token numa variável)
+TOKEN=$(curl -s -X POST $BASE/api/auth/login-cliente \
+  -H "Content-Type: application/json" \
+  -d '{"email":"cliente@pedix.com","senha":"cliente123"}' | jq -r .token)
+
+# Lista mesas (com o token)
+curl -s $BASE/api/mesas \
+  -H "Authorization: Bearer $TOKEN" | jq
+
+# Cria pedido
+curl -s -X POST "$BASE/api/pedidos?clienteId=<id>&garcomId=<id>&mesaId=<id>" \
+  -H "Authorization: Bearer $TOKEN" | jq
+
+# Adiciona item
+curl -s -X POST "$BASE/api/pedido-itens?pedidoId=<id>&itemCardapioId=7&quantidade=1&precoMomento=25" \
+  -H "Authorization: Bearer $TOKEN" | jq
+
+# Aprovar pagamento
+curl -s -X PUT $BASE/api/pagamentos/<id>/aprovar \
+  -H "Authorization: Bearer $TOKEN" | jq
+```
 
 ---
 
