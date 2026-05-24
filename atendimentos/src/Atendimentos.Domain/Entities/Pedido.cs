@@ -16,13 +16,18 @@ namespace Atendimentos.Domain.Entities
 
         public string Status { get; private set; }
 
+        // Observação livre do cliente (ex: "sem cebola", "bem passado").
+        // Nullable porque pedido pode ser criado sem nenhuma anotação.
+        public string? Observacao { get; private set; }
+
         // ==========================================
         // 🏗️ CONSTRUTOR
         // ==========================================
         public Pedido(
             Guid clienteId,
             Guid garcomId,
-            Guid mesaId)
+            Guid mesaId,
+            string? observacao = null)
         {
             Id = Guid.NewGuid();
 
@@ -37,6 +42,10 @@ namespace Atendimentos.Domain.Entities
             ValorTotal = 0;
 
             Status = "ABERTO";
+
+            Observacao = string.IsNullOrWhiteSpace(observacao)
+                ? null
+                : observacao.Trim();
         }
 
         // ==========================================
@@ -55,6 +64,17 @@ namespace Atendimentos.Domain.Entities
             string status)
         {
             Status = status;
+        }
+
+        // ==========================================
+        // 📝 ALTERA OBSERVAÇÃO
+        // ==========================================
+        public void AlterarObservacao(
+            string? observacao)
+        {
+            Observacao = string.IsNullOrWhiteSpace(observacao)
+                ? null
+                : observacao.Trim();
         }
 
         protected Pedido()

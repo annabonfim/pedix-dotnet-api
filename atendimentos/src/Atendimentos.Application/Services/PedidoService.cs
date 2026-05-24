@@ -67,13 +67,15 @@ namespace Atendimentos.Application.Services
             CriarAsync(
                 Guid clienteId,
                 Guid garcomId,
-                Guid mesaId)
+                Guid mesaId,
+                string? observacao = null)
         {
             var pedido =
                 new Pedido(
                     clienteId,
                     garcomId,
-                    mesaId);
+                    mesaId,
+                    observacao);
 
             var criado = await _repository
                 .CriarAsync(pedido);
@@ -82,6 +84,26 @@ namespace Atendimentos.Application.Services
             await OcuparMesaAsync(mesaId);
 
             return criado;
+        }
+
+        // =====================================================
+        // 📝 ATUALIZAR OBSERVAÇÃO
+        // =====================================================
+        public async Task<Pedido?>
+            AtualizarObservacaoAsync(
+                Guid id,
+                string? observacao)
+        {
+            var pedido = await _repository
+                .ObterPorIdAsync(id);
+
+            if (pedido == null) return null;
+
+            pedido.AlterarObservacao(observacao);
+
+            await _repository.AtualizarAsync(pedido);
+
+            return pedido;
         }
 
         // =====================================================

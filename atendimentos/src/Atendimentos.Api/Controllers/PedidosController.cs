@@ -24,18 +24,48 @@ namespace Atendimentos.Api.Controllers
         // =====================================================
         // ✅ CRIAR PEDIDO
         // =====================================================
+        // Observação é opcional — vem como query string pra manter o
+        // padrão dos outros endpoints (clienteId/garcomId/mesaId).
         [HttpPost]
         public async Task<IActionResult>
             CriarPedido(
                 Guid clienteId,
                 Guid garcomId,
-                Guid mesaId)
+                Guid mesaId,
+                string? observacao = null)
         {
             var pedido =
                 await _service.CriarAsync(
                     clienteId,
                     garcomId,
-                    mesaId);
+                    mesaId,
+                    observacao);
+
+            return Ok(pedido);
+        }
+
+        // =====================================================
+        // 📝 ATUALIZAR OBSERVAÇÃO DO PEDIDO
+        // =====================================================
+        [HttpPut("{id}/observacao")]
+        public async Task<IActionResult>
+            AtualizarObservacao(
+                Guid id,
+                [FromBody] AtualizarObservacaoDto dto)
+        {
+            var pedido = await _service
+                .AtualizarObservacaoAsync(
+                    id,
+                    dto?.Observacao);
+
+            if (pedido == null)
+            {
+                return NotFound(new
+                {
+                    message =
+                        "Pedido não encontrado."
+                });
+            }
 
             return Ok(pedido);
         }

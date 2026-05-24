@@ -235,6 +235,11 @@ namespace Atendimentos.Infrastructure.Context
                 entity.Property(p => p.Status)
                     .HasColumnName("STATUS")
                     .HasMaxLength(50);
+
+                entity.Property(p => p.Observacao)
+                    .HasColumnName("OBSERVACAO")
+                    .HasMaxLength(500)
+                    .IsRequired(false);
             });
 
             // =================================================

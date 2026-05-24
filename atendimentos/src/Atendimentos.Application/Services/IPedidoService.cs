@@ -7,7 +7,12 @@ namespace Atendimentos.Application.Services
         Task<Pedido> CriarAsync(
             Guid clienteId,
             Guid garcomId,
-            Guid mesaId);
+            Guid mesaId,
+            string? observacao = null);
+
+        Task<Pedido?> AtualizarObservacaoAsync(
+            Guid id,
+            string? observacao);
 
         Task<List<Pedido>>
             ObterTodosAsync();

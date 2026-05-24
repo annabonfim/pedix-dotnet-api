@@ -315,6 +315,27 @@ builder.Services.AddSwaggerGen(options =>
 var app = builder.Build();
 
 // =====================================================
+// 🗃️ APLICA MIGRATIONS PENDENTES NO STARTUP
+// =====================================================
+// Aplica migrations do EF Core ao subir o app. Útil pro deploy no Azure
+// (toda vez que o GH Actions reinicia o App Service após push, qualquer
+// migration nova roda automaticamente). Falha silenciosa se Oracle estiver
+// indisponível pra não travar o startup — health check vai sinalizar.
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var db = scope.ServiceProvider
+            .GetRequiredService<Atendimentos.Infrastructure.Context.AtendimentosDbContext>();
+        db.Database.Migrate();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[STARTUP] Falha aplicando migrations: {ex.Message}");
+    }
+}
+
+// =====================================================
 // 📘 SWAGGER
 // =====================================================
 // Projeto acadêmico: deixa o Swagger ligado em produção também
